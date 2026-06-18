@@ -16,13 +16,14 @@ class RepoStatus(str, enum.Enum):
 
 class Repository(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
-    user_id = Column(String, ForeignKey("user.id"), nullable=False)
+    user_id = Column(String, nullable=False)
     github_url = Column(String, nullable=False)
     name = Column(String, nullable=False)
     status = Column(Enum(RepoStatus), default=RepoStatus.PENDING, nullable=False)
     summary = Column(Text, nullable=True)
+    tree = Column(Text, nullable=True)
+    graph_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
-    user = relationship("User", backref="repositories")
     sessions = relationship("InterviewSession", backref="repository", cascade="all, delete-orphan")

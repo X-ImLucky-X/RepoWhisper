@@ -11,6 +11,7 @@ router = APIRouter()
 class ChatRequest(BaseModel):
     repository_id: UUID
     message: str
+    mode: str = "interview"
 
 class ChatResponse(BaseModel):
     reply: str
@@ -18,9 +19,12 @@ class ChatResponse(BaseModel):
 @router.post("/", response_model=ChatResponse)
 def send_message(req: ChatRequest, db: Session = Depends(get_db)):
     # 1. Get or create an interview session
-    session = db.query(InterviewSession).filter(InterviewSession.repository_id == str(req.repository_id)).first()
+    session = db.query(InterviewSession).filter(
+        InterviewSession.repository_id == str(req.repository_id),
+        InterviewSession.mode == req.mode
+    ).first()
     if not session:
-        session = InterviewSession(repository_id=str(req.repository_id))
+        session = InterviewSession(repository_id=str(req.repository_id), mode=req.mode)
         db.add(session)
         db.commit()
         db.refresh(session)
@@ -35,7 +39,11 @@ def send_message(req: ChatRequest, db: Session = Depends(get_db)):
     formatted_history = [{"role": msg.role.value, "content": msg.content} for msg in history[:-1]] # exclude the latest user msg
 
     # 4. Invoke Agent
-    agent = MockInterviewerAgent(repository_id=str(req.repository_id))
+    from app.models.repository import Repository
+    repo = db.query(Repository).filter(Repository.id == str(req.repository_id)).first()
+    repo_summary = repo.summary if repo else "No summary available."
+    
+    agent = MockInterviewerAgent(repository_id=str(req.repository_id), repo_summary=repo_summary, mode=req.mode)
     try:
         reply_content = agent.chat(user_input=req.message, chat_history=formatted_history)
     except Exception as e:
@@ -45,5 +53,34 @@ def send_message(req: ChatRequest, db: Session = Depends(get_db)):
     ai_msg = ChatMessage(session_id=session.id, role=RoleEnum.AI, content=reply_content)
     db.add(ai_msg)
     db.commit()
+
+    return ChatResponse(reply=reply_content)
+
+@router.get("/history/{repo_id}")
+def get_chat_history(repo_id: str, mode: str = "interview", db: Session = Depends(get_db)):
+    session = db.query(InterviewSession).filter(
+        InterviewSession.repository_id == repo_id,
+        InterviewSession.mode == mode
+    ).first()
+    if not session:
+        return []
+    history = db.query(ChatMessage).filter(ChatMessage.session_id == session.id).order_by(ChatMessage.timestamp.asc()).all()
+    return [{"role": msg.role.value, "content": msg.content} for msg in history]
+
+class ExplainRequest(BaseModel):
+    repository_id: UUID
+    file_path: str
+
+@router.post("/explain", response_model=ChatResponse)
+def explain_file_endpoint(req: ExplainRequest, db: Session = Depends(get_db)):
+    from app.models.repository import Repository
+    repo = db.query(Repository).filter(Repository.id == str(req.repository_id)).first()
+    repo_summary = repo.summary if repo else "No summary available."
+    
+    agent = MockInterviewerAgent(repository_id=str(req.repository_id), repo_summary=repo_summary, mode="walkthrough")
+    try:
+        reply_content = agent.explain_file(file_path=req.file_path)
+    except Exception as e:
+        reply_content = f"Error generating explanation: {str(e)}"
 
     return ChatResponse(reply=reply_content)

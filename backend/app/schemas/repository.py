@@ -1,11 +1,14 @@
 from pydantic import BaseModel, HttpUrl
-from uuid import UUID
 
 class RepoImportRequest(BaseModel):
     github_url: HttpUrl
-    user_id: UUID # Assuming client sends this from NextAuth session
+    user_id: str
+    access_token: str = None
 
 class RepoImportResponse(BaseModel):
-    id: UUID
+    id: str
     status: str
     message: str
+
+class RepoRetryRequest(BaseModel):
+    access_token: str = ""

@@ -1,8 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Terminal, GitMerge, MessageSquareCode } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { Terminal, GitMerge, MessageSquareCode, ArrowRight } from "lucide-react";
+import { signIn, useSession } from "next-auth/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -23,6 +25,12 @@ function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 export default function LandingPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Optionally auto-redirect if logged in, or just show Dashboard button
+  // We will show the Dashboard button so they can still see the landing page if they want.
+
   return (
     <div className="relative min-h-screen bg-neutral-950 text-neutral-50 overflow-hidden font-sans">
       {/* Background Gradients */}
@@ -34,13 +42,27 @@ export default function LandingPage() {
           <MessageSquareCode className="w-8 h-8 text-indigo-400" />
           <span className="text-xl font-bold tracking-tight">RepoWhisper</span>
         </div>
-        <button 
-          onClick={() => signIn("github")}
-          className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 transition-colors rounded-lg font-medium text-sm flex items-center gap-2"
-        >
-          <GithubIcon className="w-4 h-4" />
-          Sign in with GitHub
-        </button>
+        
+        {status === "loading" ? (
+          <div className="h-10 w-32 bg-white/5 animate-pulse rounded-lg" />
+        ) : session ? (
+          <div className="flex items-center gap-4">
+            <Link href="/profile" className="text-sm font-medium text-neutral-300 hover:text-white transition-colors hidden sm:block">
+              Profile
+            </Link>
+            <Link href="/dashboard" className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 transition-colors rounded-lg font-medium text-sm flex items-center gap-2 text-white">
+              Go to Dashboard <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        ) : (
+          <button 
+            onClick={() => signIn("github", { callbackUrl: '/dashboard' })}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 transition-colors rounded-lg font-medium text-sm flex items-center gap-2"
+          >
+            <GithubIcon className="w-4 h-4" />
+            Sign in with GitHub
+          </button>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -85,13 +107,22 @@ export default function LandingPage() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-10 flex flex-col sm:flex-row items-center gap-4"
         >
-          <button 
-            onClick={() => signIn("github")}
-            className="px-8 py-4 bg-indigo-500 hover:bg-indigo-600 transition-colors rounded-xl font-medium text-white flex items-center gap-2 shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)]"
-          >
-            <GithubIcon className="w-5 h-5" />
-            Get Started Free
-          </button>
+          {session ? (
+            <Link 
+              href="/dashboard"
+              className="px-8 py-4 bg-indigo-500 hover:bg-indigo-600 transition-colors rounded-xl font-medium text-white flex items-center gap-2 shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)]"
+            >
+              Enter Dashboard <ArrowRight className="w-5 h-5" />
+            </Link>
+          ) : (
+            <button 
+              onClick={() => signIn("github", { callbackUrl: '/dashboard' })}
+              className="px-8 py-4 bg-indigo-500 hover:bg-indigo-600 transition-colors rounded-xl font-medium text-white flex items-center gap-2 shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)]"
+            >
+              <GithubIcon className="w-5 h-5" />
+              Get Started Free
+            </button>
+          )}
         </motion.div>
 
         {/* Feature Grid */}

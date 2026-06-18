@@ -2,14 +2,14 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.repository import Repository, RepoStatus
-from app.schemas.repository import RepoImportRequest, RepoImportResponse
+from app.schemas.repository import RepoImportRequest, RepoImportResponse, RepoRetryRequest
 from app.services.github.parser import GitHubParser
 from app.services.rag.ingestion import RAGIngestor
 from app.services.agent.summarizer import RepoSummarizer
 
 router = APIRouter()
 
-def process_repository(repo_id: str, github_url: str, db: Session):
+def process_repository(repo_id: str, github_url: str, access_token: str, db: Session):
     try:
         # Update status to PARSING
         repo = db.query(Repository).filter(Repository.id == repo_id).first()
@@ -19,9 +19,10 @@ def process_repository(repo_id: str, github_url: str, db: Session):
         db.commit()
 
         # Step 1: Clone and parse files
-        parser = GitHubParser(github_url=github_url)
+        parser = GitHubParser(github_url=github_url, access_token=access_token)
         parser.clone()
-        files = parser.get_files()
+        import json
+        files, tree_str, graph_data = parser.get_files_and_tree()
         
         # Step 2: Ingest into RAG / Vector DB
         ingestor = RAGIngestor(repository_id=repo_id)
@@ -29,11 +30,13 @@ def process_repository(repo_id: str, github_url: str, db: Session):
         
         # Step 3: Generate Cheat Sheet Summary
         summarizer = RepoSummarizer()
-        summary = summarizer.generate_cheat_sheet(files)
+        summary = summarizer.generate_cheat_sheet(files, tree_str)
         
         # Step 4: Cleanup and update status
         parser.cleanup()
         repo.summary = summary
+        repo.tree = tree_str
+        repo.graph_json = json.dumps(graph_data)
         repo.status = RepoStatus.COMPLETED
         db.commit()
 
@@ -42,6 +45,7 @@ def process_repository(repo_id: str, github_url: str, db: Session):
         repo = db.query(Repository).filter(Repository.id == repo_id).first()
         if repo:
             repo.status = RepoStatus.FAILED
+            repo.summary = f"Error: {str(e)}"
             db.commit()
         print(f"Error processing repository {repo_id}: {e}")
 
@@ -61,10 +65,47 @@ def import_repository(req: RepoImportRequest, background_tasks: BackgroundTasks,
     db.refresh(new_repo)
 
     # Dispatch background task
-    background_tasks.add_task(process_repository, str(new_repo.id), str(req.github_url), db)
+    background_tasks.add_task(process_repository, str(new_repo.id), str(req.github_url), req.access_token, db)
 
     return RepoImportResponse(
         id=new_repo.id,
         status=new_repo.status.value,
         message="Repository ingestion started."
     )
+
+@router.post("/{repo_id}/retry")
+def retry_repository(repo_id: str, req: RepoRetryRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+    
+    if repo.status != RepoStatus.FAILED:
+        raise HTTPException(status_code=400, detail="Only failed repositories can be retried")
+
+    repo.status = RepoStatus.PENDING
+    repo.summary = None
+    db.commit()
+
+    background_tasks.add_task(process_repository, str(repo.id), repo.github_url, req.access_token, db)
+
+    return {"message": "Retry started"}
+
+@router.get("/user/{user_id}")
+def get_user_repos(user_id: str, db: Session = Depends(get_db)):
+    repos = db.query(Repository).filter(Repository.user_id == user_id).order_by(Repository.created_at.desc()).all()
+    return [{"id": r.id, "name": r.name, "status": r.status.value, "created_at": r.created_at} for r in repos]
+
+@router.get("/{repo_id}")
+def get_repo_detail(repo_id: str, db: Session = Depends(get_db)):
+    repo = db.query(Repository).filter(Repository.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail="Repository not found")
+    import json
+    return {
+        "id": repo.id,
+        "name": repo.name,
+        "status": repo.status.value,
+        "summary": repo.summary,
+        "tree": repo.tree,
+        "graph_json": json.loads(repo.graph_json) if repo.graph_json else None
+    }

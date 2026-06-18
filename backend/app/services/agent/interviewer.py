@@ -1,68 +1,117 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
 from app.services.rag.ingestion import RAGIngestor
 
 class MockInterviewerAgent:
-    def __init__(self, repository_id: str):
+    def __init__(self, repository_id: str, repo_summary: str = "", mode: str = "interview"):
         self.repository_id = repository_id
-        self.llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0.7)
+        self.repo_summary = repo_summary
+        self.mode = mode
+        self.llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
         self.retriever = RAGIngestor(repository_id).get_retriever()
         self.qa_chain = self._build_chain()
         
     def _build_chain(self):
-        # 1. Contextualize question based on history
-        contextualize_q_system_prompt = (
-            "Given a chat history and the latest user input "
-            "which might reference context in the chat history, "
-            "formulate a standalone question which can be understood "
-            "without the chat history. Do NOT answer the question, "
-            "just reformulate it if needed and otherwise return it as is."
-        )
-        contextualize_q_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", contextualize_q_system_prompt),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
-        history_aware_retriever = create_history_aware_retriever(
-            self.llm, self.retriever, contextualize_q_prompt
-        )
+        if self.mode == "walkthrough":
+            system_prompt = (
+                "You are a friendly, patient, and highly experienced AI Tutor helping a developer understand their codebase. "
+                "Here is the high-level architectural overview of their repository to help you understand the core design:\n"
+                f"### ARCHITECTURE SUMMARY:\n{self.repo_summary}\n\n###\n"
+                "Use the architecture summary above AND the following specific pieces of retrieved code context to explain how things work. "
+                "If you don't know the answer based on the context, politely let them know that you can't find it in their code. "
+                "Your goal is to be educational, supportive, and clear. Break down complex data flows or utility functions simply. "
+                "CRITICAL: You are equipped with a Mermaid.js rendering engine in your chat UI. Whenever the user asks for a Dependency Graph, Impact Analysis, Architecture Timeline, Call Flow Visualization, or Service Communication Map, you MUST output a valid ```mermaid code block visualizing the relationships. "
+                "MERMAID SYNTAX RULES: Use `graph TD;`. For labeled arrows, use `-->|label|`. Node labels MUST be wrapped in double quotes if they contain spaces or parentheses. Example: `A[\"Frontend (React)\"] -->|calls API| B[\"Backend (Node)\"];`. Do NOT output invalid arrows like `-->|label|>`."
+                "\n\nCode Context:\n{context}"
+            )
+        else:
+            system_prompt = (
+                "You are a cynical, aggressive Principal Software Engineer interviewing a candidate for a senior backend role. "
+                "The candidate has submitted a GitHub repository for review. "
+                "Here is the high-level architectural overview of their repository to help you understand the core design:\n"
+                f"### ARCHITECTURE SUMMARY:\n{self.repo_summary}\n\n###\n"
+                "Use the architecture summary above AND the following specific pieces of retrieved code context to answer the question, or to poke holes in their design. "
+                "If you don't know the answer based on the context, say that you can't find it in their code, and penalize them for lack of clarity. "
+                "Always ask a follow-up technical question challenging their design choices, scaling limits, or security practices. "
+                "\n\nCode Context:\n{context}"
+            )
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}")
+        ])
 
-        # 2. Answer question using RAG and Interviewer Persona
-        system_prompt = (
-            "You are a cynical, aggressive Principal Software Engineer interviewing a candidate for a senior backend role. "
-            "The candidate has submitted a GitHub repository for review. "
-            "Use the following pieces of retrieved context from their repository to answer the question, or to poke holes in their design. "
-            "If you don't know the answer, say that you can't find it in their code, and penalize them for lack of clarity. "
-            "Always ask a follow-up technical question challenging their design choices, scaling limits, or security practices. "
-            "\n\n"
-            "{context}"
-        )
-        qa_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_prompt),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
-        question_answer_chain = create_stuff_documents_chain(self.llm, qa_prompt)
+        def format_docs(docs):
+            formatted = []
+            for doc in docs:
+                source = doc.metadata.get("source", "Unknown file")
+                node_type = doc.metadata.get("node_type", "chunk")
+                node_name = doc.metadata.get("node_name", "anonymous")
+                formatted.append(f"--- File: {source} | Type: {node_type} | Name: {node_name} ---\n{doc.page_content}")
+            return "\n\n".join(formatted)
 
-        # 3. Combine into final RAG chain
-        rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+        rag_chain = (
+            RunnablePassthrough.assign(
+                context=(lambda x: x["input"]) | self.retriever | format_docs
+            )
+            | prompt
+            | self.llm
+            | StrOutputParser()
+        )
         return rag_chain
 
     def chat(self, user_input: str, chat_history: list) -> str:
-        # Convert raw history to LangChain message objects
         formatted_history = []
-        for msg in chat_history:
+        # Keep only the last 6 messages to save tokens
+        recent_history = chat_history[-6:] if len(chat_history) > 6 else chat_history
+        for msg in recent_history:
             if msg["role"] == "USER":
                 formatted_history.append(HumanMessage(content=msg["content"]))
             else:
                 formatted_history.append(AIMessage(content=msg["content"]))
 
-        response = self.qa_chain.invoke({"input": user_input, "chat_history": formatted_history})
-        return response["answer"]
+        response = self.qa_chain.invoke({
+            "input": user_input,
+            "chat_history": formatted_history
+        })
+        return response
+
+    def explain_file(self, file_path: str) -> str:
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", (
+                "You are an expert developer. The user wants you to explain a specific file from their codebase: {file_path}.\n"
+                "Here is the high-level architecture of the repository:\n"
+                "{repo_summary}\n\n"
+                "Review the code context provided below and generate a short, structured 'Explain Like I'm New' breakdown of this file.\n"
+                "Your output MUST be formatted exactly in Markdown with these headers:\n"
+                "### 🎯 Purpose\n[1-2 sentences]\n"
+                "### 🔗 Depends On\n[Bullet points of key external services or internal modules it uses]\n"
+                "### ⚠️ Risk Level\n[Low/Medium/High] - [Brief reason why]\n\n"
+                "Code Context for {file_path}:\n{context}"
+            )),
+            ("human", "Explain the file: {file_path}")
+        ])
+
+        def format_docs(docs):
+            formatted = []
+            for doc in docs:
+                source = doc.metadata.get("source", "Unknown file")
+                node_type = doc.metadata.get("node_type", "chunk")
+                node_name = doc.metadata.get("node_name", "anonymous")
+                formatted.append(f"--- File: {source} | Type: {node_type} | Name: {node_name} ---\n{doc.page_content}")
+            return "\n\n".join(formatted)
+
+        chain = (
+            {
+                "context": (lambda x: x["file_path"]) | self.retriever | format_docs,
+                "file_path": lambda x: x["file_path"],
+                "repo_summary": lambda _: self.repo_summary
+            }
+            | prompt
+            | self.llm
+            | StrOutputParser()
+        )
+        return chain.invoke({"file_path": file_path})

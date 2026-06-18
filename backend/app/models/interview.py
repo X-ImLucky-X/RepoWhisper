@@ -15,6 +15,7 @@ class RoleEnum(str, enum.Enum):
 class InterviewSession(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     repository_id = Column(String, ForeignKey("repository.id"), nullable=False)
+    mode = Column(String, default="interview", nullable=False)
     started_at = Column(DateTime, default=datetime.utcnow)
     
     messages = relationship("ChatMessage", backref="session", cascade="all, delete-orphan")

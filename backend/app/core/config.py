@@ -8,8 +8,12 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./repowhisper.db"
     
+    # API Keys
+    GOOGLE_API_KEY: str | None = None
+    
     class Config:
         case_sensitive = True
         env_file = ".env"
+        extra = "ignore"
 
 settings = Settings()
