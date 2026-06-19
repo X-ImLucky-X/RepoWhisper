@@ -11,6 +11,8 @@ services:
       mountPath: /data
       sizeGB: 1
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: DATABASE_URL
         value: sqlite:////data/repowhisper.db
       - key: QDRANT_DB_DIR
