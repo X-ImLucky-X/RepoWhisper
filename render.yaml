@@ -18,9 +18,9 @@ services:
       - key: QDRANT_DB_DIR
         value: /data/qdrant_db
       - key: GOOGLE_API_KEY
-        sync: false
+        value: ""
       - key: GROQ_API_KEY
-        sync: false
+        value: ""
   - type: web
     name: repowhisper-frontend
     env: node
