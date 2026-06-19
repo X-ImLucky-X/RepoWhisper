@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     
     # API Keys
     GOOGLE_API_KEY: str | None = None
+    GROQ_API_KEY: str | None = None
+    GITHUB_ID: str | None = None
+    GITHUB_SECRET: str | None = None
+    NEXTAUTH_SECRET: str | None = None
+    NEXTAUTH_URL: str | None = None
     
     class Config:
         case_sensitive = True
