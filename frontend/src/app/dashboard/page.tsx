@@ -28,11 +28,17 @@ export default function Dashboard() {
   const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingGithub, setLoadingGithub] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchRepos = async () => {
-    if (!session?.user?.id) return;
+    if (!(session?.user as any)?.id) return;
+    const userId = (session?.user as any).id;
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/repos/user/${session.user.id}`);
+      const res = await fetch(`http://localhost:8000/api/v1/repos/user/${userId}`, {
+        headers: {
+          "X-User-Id": userId
+        }
+      });
       if (res.ok) {
         const data = await res.json();
         setRepos(data);
@@ -87,18 +93,22 @@ export default function Dashboard() {
   }, [repos]);
 
   const handleImport = async (url: string) => {
-    if (!session?.user?.id) return alert("Please sign in first");
+    if (!(session?.user as any)?.id) return alert("Please sign in first");
     if (!url) return;
+    const userId = (session?.user as any).id;
     
     try {
       const res = await fetch("http://localhost:8000/api/v1/repos/import", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-User-Id": userId 
+        },
         body: JSON.stringify({
           github_url: url,
-          user_id: session.user.id,
+          user_id: userId,
           // @ts-ignore
-          access_token: session.user.accessToken
+          access_token: (session?.user as any)?.accessToken
         })
       });
       if (res.ok) {
@@ -113,12 +123,15 @@ export default function Dashboard() {
   const handleRetry = async (e: React.MouseEvent, repoId: string) => {
     e.preventDefault();
     try {
+      const userId = (session?.user as any)?.id || "";
       const res = await fetch(`http://localhost:8000/api/v1/repos/${repoId}/retry`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-User-Id": userId
+        },
         body: JSON.stringify({
-          // @ts-ignore
-          access_token: session?.user?.accessToken || ""
+          access_token: (session?.user as any)?.accessToken || ""
         })
       });
       if (res.ok) {
@@ -129,9 +142,14 @@ export default function Dashboard() {
     }
   };
 
+  const filteredRepos = repos.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
   return (
-    <div className="min-h-screen bg-cyber-canvas text-white p-6 md:p-10 uppercase font-bold">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-cyber-canvas text-white p-4 sm:p-6 md:p-10 uppercase font-bold relative">
+      {/* Retro Dot Background */}
+      <div className="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(circle,#ffffff_2px,transparent_2px)] bg-[size:32px_32px] animate-slide-diagonal z-0" />
+      
+      <div className="max-w-7xl mx-auto space-y-8 relative z-10">
         
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-4 border-cyber-border pb-6">
@@ -145,13 +163,15 @@ export default function Dashboard() {
               Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}. Ready to cure developer amnesia?
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
+            <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white" />
               <input 
                 type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="SEARCH REPOS..." 
-                className="pl-9 pr-4 py-2 bg-cyber-panel border-2 border-cyber-border text-sm focus:outline-none focus:ring-0 focus:border-cyber-cyan transition-all placeholder:text-neutral-500 shadow-[4px_4px_0px_#000]"
+                className="w-full pl-9 pr-4 py-2 bg-cyber-panel border-2 border-cyber-border text-sm focus:outline-none focus:ring-0 focus:border-cyber-cyan transition-all placeholder:text-neutral-500 shadow-[4px_4px_0px_#000] normal-case"
               />
             </div>
             <Link 
@@ -173,21 +193,27 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Main Content (Repos) */}
-          <div className="lg:col-span-2 space-y-6">
-            <h2 className="text-2xl flex items-center gap-2 text-cyber-cyan drop-shadow-[2px_2px_0px_#000]">
+          <div className="lg:col-span-2 relative min-h-[500px]">
+            <div className="lg:absolute lg:inset-0 flex flex-col gap-6 h-full">
+              <h2 className="text-2xl flex items-center gap-2 text-cyber-cyan drop-shadow-[2px_2px_0px_#000] shrink-0">
               <FolderGit2 className="w-6 h-6" />
               Your Knowledge Graphs
             </h2>
             
-            <div className="grid gap-6">
-              {loading ? (
+            <div className="flex-1 min-h-0 overflow-y-auto pr-2 pb-4 custom-scrollbar">
+              <div className="grid gap-6">
+                {loading ? (
                 <div className="text-cyber-cyan animate-pulse bg-cyber-panel border-2 border-cyber-border p-4">SYSTEM SCANNING...</div>
               ) : repos.length === 0 ? (
                 <div className="p-8 text-center text-white border-4 border-dashed border-cyber-border bg-cyber-panel shadow-[8px_8px_0px_#000]">
                   NO REPOSITORIES IMPORTED YET. SELECT ONE FROM THE SIDEBAR OR PASTE A URL TO INITIATE SEQUENCE.
                 </div>
+              ) : filteredRepos.length === 0 ? (
+                <div className="p-8 text-center text-white border-4 border-dashed border-cyber-border bg-cyber-panel shadow-[8px_8px_0px_#000]">
+                  NO REPOSITORIES MATCH "{searchQuery}".
+                </div>
               ) : (
-                repos.map((repo, i) => (
+                filteredRepos.map((repo, i) => (
                   <Link href={`/repo/${repo.id}`} key={repo.id}>
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
@@ -196,7 +222,7 @@ export default function Dashboard() {
                       className="p-5 bg-cyber-panel border-4 border-cyber-border shadow-[8px_8px_0px_#000] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_#000] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group cursor-pointer"
                     >
                       <div>
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex flex-wrap items-center gap-3 mb-2">
                           <h3 className="text-xl text-cyber-primary">{repo.name}</h3>
                           {repo.status === "COMPLETED" ? (
                             <span className="px-2 py-0.5 text-xs bg-emerald-500 text-black border-2 border-cyber-border shadow-[2px_2px_0px_#000]">READY</span>
@@ -224,6 +250,8 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+        </div>
+        </div>
 
           {/* Sidebar */}
           <div className="space-y-8">
@@ -275,7 +303,7 @@ export default function Dashboard() {
                     onChange={(e) => setRepoUrl(e.target.value)}
                     required
                     placeholder="https://github.com/user/repo" 
-                    className="w-full px-4 py-3 bg-white border-4 border-cyber-border text-black focus:outline-none placeholder:text-neutral-500 font-mono shadow-[4px_4px_0px_#000]"
+                    className="w-full px-4 py-3 bg-white border-4 border-cyber-border text-black focus:outline-none placeholder:text-neutral-500 font-mono shadow-[4px_4px_0px_#000] normal-case"
                   />
                 </div>
                 <button 

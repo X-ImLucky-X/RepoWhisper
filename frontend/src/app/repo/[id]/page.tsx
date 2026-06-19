@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Send, User, ChevronLeft, FileText, Code2, MessageSquareCode, FolderTree, FileCode, X, Activity, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import dynamic from "next/dynamic";
@@ -55,6 +56,7 @@ function Mermaid({ chart }: { chart: string }) {
 export default function MockInterviewPage() {
   const params = useParams();
   const repoId = params?.id as string;
+  const { data: session } = useSession();
   
   const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
   const [cheatSheet, setCheatSheet] = useState<string>("Loading cheat sheet...");
@@ -64,6 +66,7 @@ export default function MockInterviewPage() {
   const [repoName, setRepoName] = useState<string>("Loading...");
   const [leftTab, setLeftTab] = useState<"summary" | "tree" | "scorecard">("summary");
   const [chatMode, setChatMode] = useState<"interview" | "walkthrough">("interview");
+  const [mobileView, setMobileView] = useState<"knowledge" | "chat">("chat");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -77,7 +80,11 @@ export default function MockInterviewPage() {
     // Fetch Repo Details (Cheat Sheet)
     const fetchRepo = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/repos/${repoId}`);
+        const res = await fetch(`http://localhost:8000/api/v1/repos/${repoId}`, {
+          headers: {
+            "X-User-Id": (session?.user as any)?.id || ""
+          }
+        });
         if (res.ok) {
           const data = await res.json();
           setRepoName(data.name);
@@ -96,7 +103,11 @@ export default function MockInterviewPage() {
     // Fetch Chat History
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/chat/history/${repoId}?mode=${chatMode}`);
+        const res = await fetch(`http://localhost:8000/api/v1/chat/history/${repoId}?mode=${chatMode}`, {
+          headers: {
+            "X-User-Id": (session?.user as any)?.id || ""
+          }
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.length > 0) {
@@ -113,11 +124,11 @@ export default function MockInterviewPage() {
       }
     };
 
-    if (repoId) {
+    if (repoId && (session?.user as any)?.id) {
       fetchRepo();
       fetchHistory();
     }
-  }, [repoId, chatMode]);
+  }, [repoId, chatMode, session]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -143,7 +154,10 @@ export default function MockInterviewPage() {
 
       const res = await fetch("http://localhost:8000/api/v1/chat/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-User-Id": (session?.user as any)?.id || ""
+        },
         body: JSON.stringify({
           repository_id: repoId,
           message: userMessage,
@@ -175,7 +189,10 @@ export default function MockInterviewPage() {
 
         const res = await fetch(`http://localhost:8000/api/v1/chat/explain`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "X-User-Id": (session?.user as any)?.id || ""
+          },
           body: JSON.stringify({
             repository_id: repoId,
             file_path: node.id,
@@ -194,68 +211,68 @@ export default function MockInterviewPage() {
   };
 
   return (
-    <div className="h-screen bg-cyber-canvas text-white flex flex-col uppercase font-mono font-bold overflow-hidden">
+    <div className="h-[100dvh] bg-cyber-canvas text-white flex flex-col uppercase font-mono font-bold overflow-hidden">
       
       {/* Top Navbar */}
-      <header className="h-16 border-b-4 border-cyber-border flex items-center justify-between px-6 shrink-0 bg-cyber-canvas z-10">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-50 py-4 lg:h-16 border-b-4 border-cyber-border flex flex-col lg:flex-row items-center justify-between px-4 sm:px-6 shrink-0 bg-cyber-canvas gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 w-full lg:w-auto">
           <Link href="/" className="flex items-center gap-2 text-cyber-cyan hover:text-white transition-colors drop-shadow-[2px_2px_0px_#000]">
-            <MessageSquareCode className="w-6 h-6" />
-            <span className="text-xl hidden sm:block">RepoWhisper</span>
+            <MessageSquareCode className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+            <span className="text-lg sm:text-xl hidden sm:block">RepoWhisper</span>
           </Link>
-          <div className="h-6 w-1 bg-cyber-border" />
-          <Link href="/dashboard" className="p-2 border-2 border-transparent hover:border-cyber-border bg-transparent hover:bg-cyber-panel transition-colors text-cyber-primary" title="Back to Dashboard">
-            <ChevronLeft className="w-5 h-5" />
+          <div className="h-6 w-1 bg-cyber-border hidden sm:block" />
+          <Link href="/dashboard" className="p-2 border-2 border-transparent hover:border-cyber-border bg-transparent hover:bg-cyber-panel transition-colors text-cyber-primary shrink-0" title="Back to Dashboard">
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </Link>
-          <div className="flex items-center gap-2">
-            <Code2 className="w-5 h-5 text-cyber-primary" />
-            <h1 className="text-xl drop-shadow-[2px_2px_0px_#000]">{repoName}</h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <Code2 className="w-4 h-4 sm:w-5 sm:h-5 text-cyber-primary shrink-0" />
+            <h1 className="text-sm sm:text-xl drop-shadow-[2px_2px_0px_#000] truncate max-w-[150px] sm:max-w-xs">{repoName}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-cyber-panel border-2 border-cyber-border p-1 shadow-[4px_4px_0px_#000]">
+        <div className="flex flex-wrap items-center justify-center gap-2 bg-cyber-panel border-2 border-cyber-border p-1 shadow-[4px_4px_0px_#000] w-full sm:w-auto">
           <button 
             onClick={() => setChatMode("interview")}
-            className={`px-4 py-1 border-2 transition-colors flex items-center gap-2 ${chatMode === "interview" ? "bg-emerald-500 text-black border-cyber-border" : "text-neutral-400 border-transparent hover:text-white"}`}
+            className={`px-2 sm:px-4 py-1 border-2 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${chatMode === "interview" ? "bg-emerald-500 text-black border-cyber-border" : "text-neutral-400 border-transparent hover:text-white"}`}
           >
-            <div className={`w-2 h-2 ${chatMode === "interview" ? "bg-black animate-pulse" : "bg-transparent"}`} />
-            MOCK INTERVIEW
+            <div className={`w-2 h-2 shrink-0 ${chatMode === "interview" ? "bg-black animate-pulse" : "bg-transparent"}`} />
+            <span className="hidden sm:inline">MOCK</span> INTERVIEW
           </button>
           <button 
             onClick={() => setChatMode("walkthrough")}
-            className={`px-4 py-1 border-2 transition-colors flex items-center gap-2 ${chatMode === "walkthrough" ? "bg-cyber-cyan text-black border-cyber-border" : "text-neutral-400 border-transparent hover:text-white"}`}
+            className={`px-2 sm:px-4 py-1 border-2 transition-colors flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${chatMode === "walkthrough" ? "bg-cyber-cyan text-black border-cyber-border" : "text-neutral-400 border-transparent hover:text-white"}`}
           >
-            <div className={`w-2 h-2 ${chatMode === "walkthrough" ? "bg-black animate-pulse" : "bg-transparent"}`} />
-            WALKTHROUGH TUTOR
+            <div className={`w-2 h-2 shrink-0 ${chatMode === "walkthrough" ? "bg-black animate-pulse" : "bg-transparent"}`} />
+            WALKTHROUGH <span className="hidden sm:inline">TUTOR</span>
           </button>
         </div>
       </header>
 
       {/* Main Split Layout */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden border-x-4 border-b-4 border-cyber-border">
+      <main className="flex-1 flex flex-col lg:flex-row border-x-4 border-b-4 border-cyber-border min-h-0 overflow-hidden">
         
         {/* Left Panel: Cheat Sheet & Tree */}
-        <div className="w-full lg:w-1/2 border-r-4 border-cyber-border flex flex-col bg-cyber-canvas">
-          <div className="px-6 pt-4 border-b-4 border-cyber-border flex items-center gap-6 bg-cyber-panel">
+        <div className={`w-full lg:w-1/2 lg:border-b-0 lg:border-r-4 border-cyber-border flex-col bg-cyber-canvas min-h-0 ${mobileView === "knowledge" ? "flex flex-1" : "hidden lg:flex"}`}>
+          <div className="px-4 sm:px-6 pt-4 border-b-4 border-cyber-border flex flex-wrap items-center justify-start sm:gap-6 gap-2 bg-cyber-panel">
             <button 
               onClick={() => setLeftTab("summary")}
-              className={`flex items-center gap-2 text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "summary" ? "text-cyber-cyan border-cyber-cyan" : "text-neutral-500 border-transparent hover:text-white"}`}
+              className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "summary" ? "text-cyber-cyan border-cyber-cyan" : "text-neutral-500 border-transparent hover:text-white"}`}
             >
-              <FileText className="w-5 h-5" />
-              EXECUTIVE SUMMARY
+              <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">EXECUTIVE</span> SUMMARY
             </button>
             <button 
               onClick={() => setLeftTab("tree")}
-              className={`flex items-center gap-2 text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "tree" ? "text-cyber-primary border-cyber-primary" : "text-neutral-500 border-transparent hover:text-white"}`}
+              className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "tree" ? "text-cyber-primary border-cyber-primary" : "text-neutral-500 border-transparent hover:text-white"}`}
             >
-              <FolderTree className="w-5 h-5" />
-              KNOWLEDGE GRAPH
+              <FolderTree className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">KNOWLEDGE</span> GRAPH
             </button>
             <button 
               onClick={() => setLeftTab("scorecard")}
-              className={`flex items-center gap-2 text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "scorecard" ? "text-emerald-400 border-emerald-400" : "text-neutral-500 border-transparent hover:text-white"}`}
+              className={`flex items-center gap-1 sm:gap-2 text-xs sm:text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "scorecard" ? "text-emerald-400 border-emerald-400" : "text-neutral-500 border-transparent hover:text-white"}`}
             >
-              <Activity className="w-5 h-5" />
-              ARCHITECTURE SCORE
+              <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">ARCHITECTURE</span> SCORE
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-6 relative custom-scrollbar">
@@ -388,23 +405,24 @@ export default function MockInterviewPage() {
         </div>
 
         {/* Right Panel: Chat Interface */}
-        <div className="w-full lg:w-1/2 flex flex-col bg-cyber-canvas relative">
+        <div className={`w-full lg:w-1/2 flex-col bg-cyber-canvas relative min-h-0 ${mobileView === "chat" ? "flex flex-1" : "hidden lg:flex"}`}>
           
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar flex flex-col">
+            <div className="max-w-4xl mx-auto w-full space-y-6">
             {messages.map((msg, idx) => (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 key={idx} 
-                className={`flex gap-4 max-w-[85%] ${msg.role === "USER" ? "ml-auto flex-row-reverse" : ""}`}
+                className={`flex w-fit gap-3 sm:gap-4 max-w-[95%] sm:max-w-[85%] ${msg.role === "USER" ? "ml-auto flex-row-reverse" : "mr-auto"}`}
               >
-                <div className={`w-10 h-10 shrink-0 flex items-center justify-center border-2 border-cyber-border shadow-[2px_2px_0px_#000] ${msg.role === "USER" ? "bg-cyber-cyan text-black" : "bg-cyber-primary text-black"}`}>
-                  {msg.role === "USER" ? <User className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center border-2 border-cyber-border shadow-[2px_2px_0px_#000] ${msg.role === "USER" ? "bg-cyber-cyan text-black" : "bg-cyber-primary text-black"}`}>
+                  {msg.role === "USER" ? <User className="w-5 h-5 sm:w-6 sm:h-6" /> : <Bot className="w-5 h-5 sm:w-6 sm:h-6" />}
                 </div>
-                <div className={`min-w-0 overflow-hidden p-5 border-2 border-cyber-border shadow-[4px_4px_0px_#000] text-sm leading-relaxed normal-case font-mono font-normal ${msg.role === "USER" ? "bg-white text-black" : "bg-cyber-panel text-white prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-[#0B0F19] prose-pre:border-2 prose-pre:border-cyber-border prose-pre:shadow-[4px_4px_0px_#000]"}`}>
+                <div className={`min-w-0 overflow-hidden p-5 border-2 border-cyber-border shadow-[4px_4px_0px_#000] text-sm leading-relaxed normal-case font-mono font-normal break-words ${msg.role === "USER" ? "bg-white text-black" : "bg-cyber-panel text-white prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-[#0B0F19] prose-pre:border-2 prose-pre:border-cyber-border prose-pre:shadow-[4px_4px_0px_#000] prose-pre:max-w-full prose-pre:overflow-x-auto"}`}>
                   {msg.role === "USER" ? (
-                    msg.content
+                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                   ) : (
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
@@ -425,17 +443,18 @@ export default function MockInterviewPage() {
               </motion.div>
             ))}
             <div ref={messagesEndRef} />
+            </div>
           </div>
 
           {/* Chat Input */}
-          <div className="p-6 bg-cyber-panel border-t-4 border-cyber-border">
-            <form onSubmit={handleSend} className="relative flex items-center">
+          <div className="p-4 sm:p-6 bg-cyber-panel border-t-4 border-cyber-border flex justify-center">
+            <form onSubmit={handleSend} className="relative flex items-center w-full max-w-4xl">
               <input 
                 type="text" 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="DISCUSS YOUR CODEBASE OR ASK A QUESTION..."
-                className="w-full pl-4 pr-16 py-4 bg-white border-4 border-cyber-border text-black shadow-[4px_4px_0px_#000] focus:outline-none focus:ring-0 placeholder:text-neutral-500 font-mono font-bold uppercase transition-all"
+                className="w-full pl-4 pr-16 py-4 bg-white border-4 border-cyber-border text-black shadow-[4px_4px_0px_#000] focus:outline-none focus:ring-0 placeholder:text-neutral-500 font-mono font-bold normal-case transition-all"
               />
               <button 
                 type="submit"
@@ -449,6 +468,24 @@ export default function MockInterviewPage() {
 
         </div>
       </main>
+
+      {/* Mobile Bottom Nav */}
+      <div className="lg:hidden shrink-0 h-14 bg-cyber-canvas border-t-4 border-cyber-border flex z-50">
+        <button 
+          onClick={() => setMobileView("knowledge")}
+          className={`flex-1 flex justify-center items-center gap-2 border-r-4 border-cyber-border transition-colors ${mobileView === "knowledge" ? "bg-cyber-primary text-black" : "text-white"}`}
+        >
+          <FolderTree className="w-5 h-5" />
+          KNOWLEDGE
+        </button>
+        <button 
+          onClick={() => setMobileView("chat")}
+          className={`flex-1 flex justify-center items-center gap-2 transition-colors ${mobileView === "chat" ? "bg-cyber-cyan text-black" : "text-white"}`}
+        >
+          <MessageSquareCode className="w-5 h-5" />
+          CHAT
+        </button>
+      </div>
     </div>
   );
 }

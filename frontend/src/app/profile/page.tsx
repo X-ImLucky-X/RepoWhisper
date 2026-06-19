@@ -57,7 +57,11 @@ export default function ProfilePage() {
     const fetchRepos = async () => {
       if ((session?.user as any)?.id) {
         try {
-          const res = await fetch(`http://localhost:8000/api/v1/repos/user/${(session?.user as any).id}`);
+          const res = await fetch(`http://localhost:8000/api/v1/repos/user/${(session?.user as any).id}`, {
+            headers: {
+              "X-User-Id": (session?.user as any).id
+            }
+          });
           if (res.ok) {
             const data = await res.json();
             setRepositories(data);
@@ -84,24 +88,27 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-cyber-canvas text-white flex flex-col font-mono uppercase font-bold">
+    <div className="relative min-h-screen bg-cyber-canvas text-white flex flex-col font-mono uppercase font-bold">
+      {/* Lightweight CSS Retro Dot Background */}
+      <div className="fixed inset-0 pointer-events-none opacity-30 bg-[radial-gradient(circle,#ffffff_2px,transparent_2px)] bg-[size:32px_32px] animate-slide-diagonal z-0" />
       
       {/* Top Navbar */}
-      <header className="h-16 border-b-4 border-cyber-border flex items-center px-6 shrink-0 bg-cyber-canvas justify-between relative z-10">
+      <header className="py-4 sm:h-16 border-b-4 border-cyber-border flex flex-wrap items-center px-4 sm:px-6 shrink-0 bg-cyber-canvas justify-between relative z-10 gap-4">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="p-2 border-2 border-transparent hover:border-cyber-border hover:bg-cyber-panel transition-colors text-cyber-cyan hover:text-white flex items-center gap-2">
             <ChevronLeft className="w-5 h-5" />
-            <span className="text-sm">[GO BACK]</span>
+            <span className="text-sm hidden sm:inline">[GO BACK]</span>
           </button>
         </div>
-        <div className="text-cyber-cyan flex items-center gap-2 drop-shadow-[2px_2px_0px_#000] text-xl">
-          <Activity className="w-6 h-6" />
-          DEV CONTROL CENTER
+        <div className="text-cyber-cyan flex items-center gap-2 drop-shadow-[2px_2px_0px_#000] text-lg sm:text-xl">
+          <Activity className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+          <span className="hidden sm:inline">DEV CONTROL CENTER</span>
+          <span className="sm:hidden">D.C.C.</span>
         </div>
       </header>
 
       {/* Main Split Layout */}
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full border-x-4 border-cyber-border">
+      <main className="flex-1 flex flex-col md:flex-row overflow-hidden max-w-7xl mx-auto w-full border-x-4 border-cyber-border relative z-10">
         
         {/* Left Sidebar Tabs */}
         <aside className="w-full md:w-64 border-b-4 md:border-b-0 md:border-r-4 border-cyber-border p-6 flex flex-col gap-4 bg-cyber-canvas shrink-0">
@@ -150,7 +157,7 @@ export default function ProfilePage() {
         </aside>
 
         {/* Right Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-cyber-canvas relative">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 bg-cyber-canvas relative">
           
           <AnimatePresence mode="wait">
             {activeTab === "overview" && (
@@ -183,20 +190,20 @@ export default function ProfilePage() {
                 {/* Connected Accounts */}
                 <div className="p-6 bg-cyber-panel border-4 border-cyber-border shadow-[8px_8px_0px_#000]">
                   <h3 className="text-xl text-cyber-cyan mb-6 flex items-center gap-2 drop-shadow-[2px_2px_0px_#000]">
-                    <GithubIcon className="w-6 h-6 text-white" />
+                    <GithubIcon className="w-6 h-6 text-white shrink-0" />
                     CONNECTED ACCOUNTS
                   </h3>
-                  <div className="flex items-center justify-between p-4 bg-cyber-canvas border-2 border-cyber-border shadow-[4px_4px_0px_#000]">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white text-black flex items-center justify-center border-2 border-cyber-border shadow-[2px_2px_0px_#BD00FF]">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-cyber-canvas border-2 border-cyber-border shadow-[4px_4px_0px_#000] gap-4">
+                    <div className="flex items-center gap-4 w-full sm:w-auto overflow-hidden">
+                      <div className="w-12 h-12 shrink-0 bg-white text-black flex items-center justify-center border-2 border-cyber-border shadow-[2px_2px_0px_#BD00FF]">
                         <GithubIcon className="w-8 h-8" />
                       </div>
-                      <div>
+                      <div className="overflow-hidden">
                         <p className="text-lg text-cyber-primary">GITHUB</p>
-                        <p className="text-sm text-white normal-case">{session?.user?.email}</p>
+                        <p className="text-sm text-white normal-case truncate">{session?.user?.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 bg-emerald-500 text-black px-4 py-2 border-2 border-cyber-border shadow-[2px_2px_0px_#000]">
+                    <div className="flex items-center justify-center w-full sm:w-auto gap-2 bg-emerald-500 text-black px-4 py-2 border-2 border-cyber-border shadow-[2px_2px_0px_#000]">
                       [ CONNECTED ]
                     </div>
                   </div>

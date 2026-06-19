@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.repository import Repository, RepoStatus
@@ -6,6 +6,9 @@ from app.schemas.repository import RepoImportRequest, RepoImportResponse, RepoRe
 from app.services.github.parser import GitHubParser
 from app.services.rag.ingestion import RAGIngestor
 from app.services.agent.summarizer import RepoSummarizer
+
+from app.core.rate_limit import limiter
+from app.api.deps import get_current_user_id, verify_repo_ownership
 
 router = APIRouter()
 
@@ -48,20 +51,23 @@ def process_repository(repo_id: str, github_url: str, access_token: str, db: Ses
 
     except Exception as e:
         # On failure, mark as FAILED
+        from app.core.security import sanitize_secrets
+        sanitized_error = sanitize_secrets(str(e), [access_token] if access_token else None)
         repo = db.query(Repository).filter(Repository.id == repo_id).first()
         if repo:
             repo.status = RepoStatus.FAILED
-            repo.summary = f"Error: {str(e)}"
+            repo.summary = f"Error: {sanitized_error}"
             db.commit()
-        print(f"Error processing repository {repo_id}: {e}")
+        print(f"Error processing repository {repo_id}: {sanitized_error}")
 
 @router.post("/import", response_model=RepoImportResponse)
-def import_repository(req: RepoImportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def import_repository(request: Request, req: RepoImportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     # Create DB entry
     repo_name = str(req.github_url).rstrip('/').split('/')[-1]
     
     new_repo = Repository(
-        user_id=str(req.user_id),
+        user_id=current_user_id,
         github_url=str(req.github_url),
         name=repo_name,
         status=RepoStatus.PENDING
@@ -80,11 +86,8 @@ def import_repository(req: RepoImportRequest, background_tasks: BackgroundTasks,
     )
 
 @router.post("/{repo_id}/retry")
-def retry_repository(repo_id: str, req: RepoRetryRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    repo = db.query(Repository).filter(Repository.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-    
+@limiter.limit("10/minute")
+def retry_repository(request: Request, repo_id: str, req: RepoRetryRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), repo: Repository = Depends(verify_repo_ownership)):
     if repo.status != RepoStatus.FAILED:
         raise HTTPException(status_code=400, detail="Only failed repositories can be retried")
 
@@ -97,7 +100,10 @@ def retry_repository(repo_id: str, req: RepoRetryRequest, background_tasks: Back
     return {"message": "Retry started"}
 
 @router.get("/user/{user_id}")
-def get_user_repos(user_id: str, db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def get_user_repos(request: Request, user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access these repositories")
     repos = db.query(Repository).filter(Repository.user_id == user_id).order_by(Repository.created_at.desc()).all()
     import json
     def get_score(scorecard_str):
@@ -109,10 +115,8 @@ def get_user_repos(user_id: str, db: Session = Depends(get_db)):
     return [{"id": r.id, "name": r.name, "github_url": r.github_url, "status": r.status.value, "score": get_score(r.scorecard), "created_at": r.created_at} for r in repos]
 
 @router.get("/{repo_id}")
-def get_repo_detail(repo_id: str, db: Session = Depends(get_db)):
-    repo = db.query(Repository).filter(Repository.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+@limiter.limit("30/minute")
+def get_repo_detail(request: Request, repo_id: str, db: Session = Depends(get_db), repo: Repository = Depends(verify_repo_ownership)):
     import json
     return {
         "id": repo.id,

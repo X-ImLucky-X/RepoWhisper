@@ -38,3 +38,4 @@ alembic/versions/*.pyc
 
 # Vector DB
 chroma_db/
+qdrant_db/

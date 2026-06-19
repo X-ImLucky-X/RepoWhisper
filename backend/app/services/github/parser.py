@@ -28,7 +28,22 @@ class GitHubParser:
         self.max_size_bytes = 50 * 1024 * 1024 # 50 MB
         
     def clone(self):
+        import requests
         try:
+            # Check size via GitHub API before cloning to prevent DoS
+            if "github.com" in self.github_url:
+                parts = self.github_url.rstrip("/").split("/")
+                if len(parts) >= 2:
+                    owner, repo = parts[-2], parts[-1]
+                    api_url = f"https://api.github.com/repos/{owner}/{repo}"
+                    headers = {{"Authorization": f"token {self.access_token}"}} if self.access_token else {{}}
+                    res = requests.get(api_url, headers=headers)
+                    if res.status_code == 200:
+                        repo_size_kb = res.json().get("size", 0)
+                        # GitHub API returns size in KB. 500000 KB = ~500 MB
+                        if repo_size_kb > 500000:
+                            raise Exception(f"Repository is too large ({repo_size_kb // 1000} MB). Max allowed is 500 MB.")
+                            
             clone_url = self.github_url
             if self.access_token:
                 base_url = clone_url.rstrip("/")
@@ -37,7 +52,14 @@ class GitHubParser:
             subprocess.run(["git", "clone", "--depth", "1", clone_url, self.temp_dir], check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
             self.cleanup()
-            raise Exception(f"Failed to clone repository: {e.stderr.decode()}")
+            from app.core.security import sanitize_secrets
+            err_msg = sanitize_secrets(e.stderr.decode(), [self.access_token] if self.access_token else None)
+            raise Exception(f"Failed to clone repository: {err_msg}")
+        except Exception as e:
+            self.cleanup()
+            from app.core.security import sanitize_secrets
+            err_msg = sanitize_secrets(str(e), [self.access_token] if self.access_token else None)
+            raise Exception(err_msg)
             
     def _build_ignore_spec(self) -> pathspec.PathSpec:
         patterns = list(DEFAULT_IGNORE_PATTERNS)
