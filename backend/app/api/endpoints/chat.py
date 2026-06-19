@@ -12,6 +12,8 @@ class ChatRequest(BaseModel):
     repository_id: UUID
     message: str
     mode: str = "interview"
+    ai_model: str = "llama3_70b"
+    response_style: str = "detailed"
 
 class ChatResponse(BaseModel):
     reply: str
@@ -43,7 +45,7 @@ def send_message(req: ChatRequest, db: Session = Depends(get_db)):
     repo = db.query(Repository).filter(Repository.id == str(req.repository_id)).first()
     repo_summary = repo.summary if repo else "No summary available."
     
-    agent = MockInterviewerAgent(repository_id=str(req.repository_id), repo_summary=repo_summary, mode=req.mode)
+    agent = MockInterviewerAgent(repository_id=str(req.repository_id), repo_summary=repo_summary, mode=req.mode, ai_model=req.ai_model, response_style=req.response_style)
     try:
         reply_content = agent.chat(user_input=req.message, chat_history=formatted_history)
     except Exception as e:
@@ -70,6 +72,8 @@ def get_chat_history(repo_id: str, mode: str = "interview", db: Session = Depend
 class ExplainRequest(BaseModel):
     repository_id: UUID
     file_path: str
+    ai_model: str = "llama3_70b"
+    response_style: str = "detailed"
 
 @router.post("/explain", response_model=ChatResponse)
 def explain_file_endpoint(req: ExplainRequest, db: Session = Depends(get_db)):
@@ -77,7 +81,7 @@ def explain_file_endpoint(req: ExplainRequest, db: Session = Depends(get_db)):
     repo = db.query(Repository).filter(Repository.id == str(req.repository_id)).first()
     repo_summary = repo.summary if repo else "No summary available."
     
-    agent = MockInterviewerAgent(repository_id=str(req.repository_id), repo_summary=repo_summary, mode="walkthrough")
+    agent = MockInterviewerAgent(repository_id=str(req.repository_id), repo_summary=repo_summary, mode="walkthrough", ai_model=req.ai_model, response_style=req.response_style)
     try:
         reply_content = agent.explain_file(file_path=req.file_path)
     except Exception as e:

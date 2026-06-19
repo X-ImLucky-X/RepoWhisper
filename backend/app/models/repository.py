@@ -23,6 +23,7 @@ class Repository(Base):
     summary = Column(Text, nullable=True)
     tree = Column(Text, nullable=True)
     graph_json = Column(Text, nullable=True)
+    scorecard = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

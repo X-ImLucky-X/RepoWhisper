@@ -28,13 +28,19 @@ def process_repository(repo_id: str, github_url: str, access_token: str, db: Ses
         ingestor = RAGIngestor(repository_id=repo_id)
         ingestor.ingest_files(files)
         
-        # Step 3: Generate Cheat Sheet Summary
+        # Step 3: Generate Cheat Sheet Summary & Scorecard
         summarizer = RepoSummarizer()
         summary = summarizer.generate_cheat_sheet(files, tree_str)
+        try:
+            scorecard = summarizer.generate_scorecard(files, tree_str)
+        except Exception as e:
+            print(f"Scorecard generation failed: {e}")
+            scorecard = None
         
         # Step 4: Cleanup and update status
         parser.cleanup()
         repo.summary = summary
+        repo.scorecard = scorecard
         repo.tree = tree_str
         repo.graph_json = json.dumps(graph_data)
         repo.status = RepoStatus.COMPLETED
@@ -93,7 +99,14 @@ def retry_repository(repo_id: str, req: RepoRetryRequest, background_tasks: Back
 @router.get("/user/{user_id}")
 def get_user_repos(user_id: str, db: Session = Depends(get_db)):
     repos = db.query(Repository).filter(Repository.user_id == user_id).order_by(Repository.created_at.desc()).all()
-    return [{"id": r.id, "name": r.name, "status": r.status.value, "created_at": r.created_at} for r in repos]
+    import json
+    def get_score(scorecard_str):
+        if not scorecard_str: return None
+        try:
+            return json.loads(scorecard_str).get("score")
+        except:
+            return None
+    return [{"id": r.id, "name": r.name, "github_url": r.github_url, "status": r.status.value, "score": get_score(r.scorecard), "created_at": r.created_at} for r in repos]
 
 @router.get("/{repo_id}")
 def get_repo_detail(repo_id: str, db: Session = Depends(get_db)):
@@ -106,6 +119,7 @@ def get_repo_detail(repo_id: str, db: Session = Depends(get_db)):
         "name": repo.name,
         "status": repo.status.value,
         "summary": repo.summary,
+        "scorecard": json.loads(repo.scorecard) if repo.scorecard else None,
         "tree": repo.tree,
         "graph_json": json.loads(repo.graph_json) if repo.graph_json else None
     }

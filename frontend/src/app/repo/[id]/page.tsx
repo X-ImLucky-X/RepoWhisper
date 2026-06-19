@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Send, User, ChevronLeft, FileText, Code2, MessageSquareCode, FolderTree, FileCode, X } from "lucide-react";
+import { Bot, Send, User, ChevronLeft, FileText, Code2, MessageSquareCode, FolderTree, FileCode, X, Activity, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -41,15 +41,15 @@ function Mermaid({ chart }: { chart: string }) {
   
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg p-4 my-4 text-sm flex flex-col gap-2 max-w-full overflow-hidden">
-        <strong>⚠️ Diagram Generation Failed</strong>
-        <p className="whitespace-normal break-words">The AI generated invalid flowchart syntax. Please ask it to try again and keep the diagram simpler.</p>
-        <pre className="text-xs bg-red-950/50 p-2 rounded overflow-x-auto whitespace-pre-wrap break-all">{chart}</pre>
+      <div className="bg-rose-500 border-2 border-cyber-border text-black p-4 my-4 text-sm flex flex-col gap-2 max-w-full overflow-hidden shadow-[4px_4px_0px_#000]">
+        <strong className="font-bold text-lg">⚠️ DIAGRAM GENERATION FAILED</strong>
+        <p className="whitespace-normal break-words normal-case">The AI generated invalid flowchart syntax. Please ask it to try again and keep the diagram simpler.</p>
+        <pre className="text-xs bg-black text-rose-400 p-2 overflow-x-auto whitespace-pre-wrap break-all border-2 border-cyber-border">{chart}</pre>
       </div>
     );
   }
 
-  return <div className="bg-neutral-900 rounded-lg p-4 my-4 overflow-x-auto flex justify-center" dangerouslySetInnerHTML={{ __html: svg }} />;
+  return <div className="bg-cyber-canvas border-2 border-cyber-border shadow-[4px_4px_0px_#000] p-4 my-4 overflow-x-auto flex justify-center" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
 export default function MockInterviewPage() {
@@ -59,9 +59,10 @@ export default function MockInterviewPage() {
   const [messages, setMessages] = useState<{role: string, content: string}[]>([]);
   const [cheatSheet, setCheatSheet] = useState<string>("Loading cheat sheet...");
   const [repoTree, setRepoTree] = useState<string>("Loading knowledge graph...");
+  const [scorecard, setScorecard] = useState<any>(null);
   const [graphData, setGraphData] = useState<{nodes: any[], links: any[]} | null>(null);
   const [repoName, setRepoName] = useState<string>("Loading...");
-  const [leftTab, setLeftTab] = useState<"summary" | "tree">("summary");
+  const [leftTab, setLeftTab] = useState<"summary" | "tree" | "scorecard">("summary");
   const [chatMode, setChatMode] = useState<"interview" | "walkthrough">("interview");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -82,6 +83,7 @@ export default function MockInterviewPage() {
           setRepoName(data.name);
           setCheatSheet(data.summary || "No summary available yet. It might still be parsing.");
           setRepoTree(data.tree || "No knowledge graph available.");
+          if (data.scorecard) setScorecard(data.scorecard);
           if (data.graph_json) {
             setGraphData(data.graph_json);
           }
@@ -136,13 +138,18 @@ export default function MockInterviewPage() {
     setIsLoading(true);
 
     try {
+      const aiModel = localStorage.getItem("rw_default_model") || "llama3_70b";
+      const responseStyle = localStorage.getItem("rw_response_style") || "detailed";
+
       const res = await fetch("http://localhost:8000/api/v1/chat/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repository_id: repoId,
           message: userMessage,
-          mode: chatMode
+          mode: chatMode,
+          ai_model: aiModel,
+          response_style: responseStyle
         })
       });
       if (res.ok) {
@@ -163,12 +170,17 @@ export default function MockInterviewPage() {
       setFileExplanation("");
       
       try {
+        const aiModel = localStorage.getItem("rw_default_model") || "llama3";
+        const responseStyle = localStorage.getItem("rw_response_style") || "detailed";
+
         const res = await fetch(`http://localhost:8000/api/v1/chat/explain`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             repository_id: repoId,
-            file_path: node.id
+            file_path: node.id,
+            ai_model: aiModel,
+            response_style: responseStyle
           })
         });
         const data = await res.json();
@@ -182,70 +194,142 @@ export default function MockInterviewPage() {
   };
 
   return (
-    <div className="h-screen bg-neutral-950 text-neutral-50 flex flex-col font-sans overflow-hidden">
+    <div className="h-screen bg-cyber-canvas text-white flex flex-col uppercase font-mono font-bold overflow-hidden">
       
       {/* Top Navbar */}
-      <header className="h-16 border-b border-white/10 flex items-center justify-between px-6 shrink-0 bg-neutral-900/50 backdrop-blur-md">
+      <header className="h-16 border-b-4 border-cyber-border flex items-center justify-between px-6 shrink-0 bg-cyber-canvas z-10">
         <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2 text-indigo-400 hover:text-indigo-300 transition-colors">
+          <Link href="/" className="flex items-center gap-2 text-cyber-cyan hover:text-white transition-colors drop-shadow-[2px_2px_0px_#000]">
             <MessageSquareCode className="w-6 h-6" />
-            <span className="font-bold hidden sm:block text-white">RepoWhisper</span>
+            <span className="text-xl hidden sm:block">RepoWhisper</span>
           </Link>
-          <div className="h-6 w-px bg-white/10" />
-          <Link href="/dashboard" className="p-2 hover:bg-white/10 rounded-lg transition-colors text-neutral-400 hover:text-white" title="Back to Dashboard">
+          <div className="h-6 w-1 bg-cyber-border" />
+          <Link href="/dashboard" className="p-2 border-2 border-transparent hover:border-cyber-border bg-transparent hover:bg-cyber-panel transition-colors text-cyber-primary" title="Back to Dashboard">
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div className="flex items-center gap-2">
-            <Code2 className="w-5 h-5 text-indigo-400" />
-            <h1 className="font-semibold tracking-tight">{repoName}</h1>
+            <Code2 className="w-5 h-5 text-cyber-primary" />
+            <h1 className="text-xl drop-shadow-[2px_2px_0px_#000]">{repoName}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-neutral-900/50 border border-white/10 rounded-full p-1">
+        <div className="flex items-center gap-2 bg-cyber-panel border-2 border-cyber-border p-1 shadow-[4px_4px_0px_#000]">
           <button 
             onClick={() => setChatMode("interview")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors flex items-center gap-2 ${chatMode === "interview" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]" : "text-neutral-500 hover:text-neutral-300"}`}
+            className={`px-4 py-1 border-2 transition-colors flex items-center gap-2 ${chatMode === "interview" ? "bg-emerald-500 text-black border-cyber-border" : "text-neutral-400 border-transparent hover:text-white"}`}
           >
-            <div className={`w-1.5 h-1.5 rounded-full ${chatMode === "interview" ? "bg-emerald-500 animate-pulse" : "bg-transparent"}`} />
-            Mock Interview
+            <div className={`w-2 h-2 ${chatMode === "interview" ? "bg-black animate-pulse" : "bg-transparent"}`} />
+            MOCK INTERVIEW
           </button>
           <button 
             onClick={() => setChatMode("walkthrough")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors flex items-center gap-2 ${chatMode === "walkthrough" ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-[0_0_15px_-3px_rgba(99,102,241,0.3)]" : "text-neutral-500 hover:text-neutral-300"}`}
+            className={`px-4 py-1 border-2 transition-colors flex items-center gap-2 ${chatMode === "walkthrough" ? "bg-cyber-cyan text-black border-cyber-border" : "text-neutral-400 border-transparent hover:text-white"}`}
           >
-            <div className={`w-1.5 h-1.5 rounded-full ${chatMode === "walkthrough" ? "bg-indigo-500 animate-pulse" : "bg-transparent"}`} />
-            Walkthrough Tutor
+            <div className={`w-2 h-2 ${chatMode === "walkthrough" ? "bg-black animate-pulse" : "bg-transparent"}`} />
+            WALKTHROUGH TUTOR
           </button>
         </div>
       </header>
 
       {/* Main Split Layout */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden border-x-4 border-b-4 border-cyber-border">
         
         {/* Left Panel: Cheat Sheet & Tree */}
-        <div className="w-full lg:w-1/2 border-r border-white/10 flex flex-col bg-neutral-950/50">
-          <div className="px-6 pt-4 border-b border-white/10 flex items-center gap-6 bg-neutral-900/30">
+        <div className="w-full lg:w-1/2 border-r-4 border-cyber-border flex flex-col bg-cyber-canvas">
+          <div className="px-6 pt-4 border-b-4 border-cyber-border flex items-center gap-6 bg-cyber-panel">
             <button 
               onClick={() => setLeftTab("summary")}
-              className={`flex items-center gap-2 font-semibold transition-colors pb-4 -mb-px border-b-2 ${leftTab === "summary" ? "text-indigo-400 border-indigo-400" : "text-neutral-500 border-transparent hover:text-neutral-300"}`}
+              className={`flex items-center gap-2 text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "summary" ? "text-cyber-cyan border-cyber-cyan" : "text-neutral-500 border-transparent hover:text-white"}`}
             >
-              <FileText className="w-4 h-4" />
-              Executive Summary
+              <FileText className="w-5 h-5" />
+              EXECUTIVE SUMMARY
             </button>
             <button 
               onClick={() => setLeftTab("tree")}
-              className={`flex items-center gap-2 font-semibold transition-colors pb-4 -mb-px border-b-2 ${leftTab === "tree" ? "text-indigo-400 border-indigo-400" : "text-neutral-500 border-transparent hover:text-neutral-300"}`}
+              className={`flex items-center gap-2 text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "tree" ? "text-cyber-primary border-cyber-primary" : "text-neutral-500 border-transparent hover:text-white"}`}
             >
-              <FolderTree className="w-4 h-4" />
-              Knowledge Graph
+              <FolderTree className="w-5 h-5" />
+              KNOWLEDGE GRAPH
+            </button>
+            <button 
+              onClick={() => setLeftTab("scorecard")}
+              className={`flex items-center gap-2 text-lg transition-colors pb-4 -mb-px border-b-4 ${leftTab === "scorecard" ? "text-emerald-400 border-emerald-400" : "text-neutral-500 border-transparent hover:text-white"}`}
+            >
+              <Activity className="w-5 h-5" />
+              ARCHITECTURE SCORE
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-6 relative">
+          <div className="flex-1 overflow-y-auto p-6 relative custom-scrollbar">
             {leftTab === "summary" ? (
-              <div className="prose prose-invert prose-indigo max-w-none">
+              <div className="prose prose-invert prose-indigo max-w-none normal-case font-mono font-normal">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{cheatSheet}</ReactMarkdown>
               </div>
+            ) : leftTab === "scorecard" ? (
+              <div className="max-w-2xl mx-auto space-y-8">
+                {scorecard ? (
+                  <>
+                    <div className="flex items-center justify-between p-6 bg-cyber-panel border-4 border-cyber-border shadow-[8px_8px_0px_#000]">
+                      <div>
+                        <h2 className="text-3xl text-cyber-cyan drop-shadow-[2px_2px_0px_#000] mb-1">HEALTH SCORE</h2>
+                        <p className="text-white normal-case font-mono">Automated evaluation by AI</p>
+                      </div>
+                      <div className={`w-24 h-24 flex items-center justify-center text-5xl font-black border-4 shadow-[4px_4px_0px_#000] ${scorecard.score >= 80 ? 'text-black border-cyber-border bg-emerald-500' : scorecard.score >= 50 ? 'text-black border-cyber-border bg-amber-500' : 'text-black border-cyber-border bg-rose-500'}`}>
+                        {scorecard.score}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-6">
+                      {scorecard.circular_dependencies && scorecard.circular_dependencies.length > 0 && (
+                        <div className="p-6 bg-rose-500 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000]">
+                          <h3 className="text-xl font-black flex items-center gap-2 mb-4">
+                            <Activity className="w-6 h-6" /> CIRCULAR DEPENDENCIES
+                          </h3>
+                          <ul className="list-disc pl-5 text-sm normal-case space-y-1 font-mono font-bold">
+                            {scorecard.circular_dependencies.map((dep: string, i: number) => <li key={i}>{dep}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {scorecard.dead_files && scorecard.dead_files.length > 0 && (
+                        <div className="p-6 bg-amber-500 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000]">
+                          <h3 className="text-xl font-black flex items-center gap-2 mb-4">
+                            <AlertTriangle className="w-6 h-6" /> DEAD / UNUSED FILES
+                          </h3>
+                          <ul className="list-disc pl-5 text-sm normal-case space-y-1 font-mono font-bold">
+                            {scorecard.dead_files.map((file: string, i: number) => <li key={i}>{file}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {scorecard.security_risks && scorecard.security_risks.length > 0 && (
+                        <div className="p-6 bg-rose-600 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000]">
+                          <h3 className="text-xl font-black flex items-center gap-2 mb-4">
+                            <ShieldAlert className="w-6 h-6" /> SECURITY RISKS
+                          </h3>
+                          <ul className="list-disc pl-5 text-sm normal-case space-y-1 font-mono font-bold">
+                            {scorecard.security_risks.map((risk: string, i: number) => <li key={i}>{risk}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {(!scorecard.circular_dependencies?.length && !scorecard.dead_files?.length && !scorecard.security_risks?.length) && (
+                        <div className="p-6 bg-emerald-500 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000] flex items-center gap-4">
+                          <CheckCircle2 className="w-10 h-10" />
+                          <div>
+                            <h3 className="text-2xl font-black">CODEBASE IS PRISTINE!</h3>
+                            <p className="text-sm normal-case font-mono font-bold mt-1">No structural issues, dead files, or security risks were found.</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="p-10 border-4 border-dashed border-cyber-border bg-cyber-panel shadow-[8px_8px_0px_#000] text-center text-white">
+                    SCORECARD IS PENDING OR UNAVAILABLE FOR THIS REPOSITORY.
+                  </div>
+                )}
+              </div>
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-neutral-950 overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center bg-[#0B0F19] overflow-hidden">
                 {graphData ? (
                    <>
                      <ForceGraph3D 
@@ -254,7 +338,7 @@ export default function MockInterviewPage() {
                         nodeAutoColorBy="group" 
                         nodeResolution={8}
                         cooldownTicks={100}
-                        backgroundColor="#0a0a0a"
+                        backgroundColor="#0B0F19"
                         onNodeClick={handleNodeClick}
                      />
                      
@@ -265,25 +349,25 @@ export default function MockInterviewPage() {
                            animate={{ x: 0, opacity: 1 }}
                            exit={{ x: 400, opacity: 0 }}
                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                           className="absolute right-0 top-0 bottom-0 w-80 bg-neutral-900/80 backdrop-blur-xl border-l border-white/10 p-6 overflow-y-auto flex flex-col shadow-2xl z-10"
+                           className="absolute right-0 top-0 bottom-0 w-[400px] bg-cyber-panel border-l-4 border-cyber-border p-6 overflow-y-auto custom-scrollbar flex flex-col shadow-[-8px_0px_0px_#000] z-10"
                          >
                            <div className="flex justify-between items-start mb-6">
-                             <h3 className="text-sm font-bold text-white flex items-center gap-2 break-all">
-                               <FileCode className="w-5 h-5 text-indigo-400 shrink-0" />
+                             <h3 className="text-lg text-cyber-cyan flex items-center gap-2 break-all drop-shadow-[1px_1px_0px_#000]">
+                               <FileCode className="w-6 h-6 shrink-0" />
                                {selectedFile.split('/').pop()}
                              </h3>
-                             <button onClick={() => setSelectedFile(null)} className="text-neutral-400 hover:text-white transition-colors p-1 bg-white/5 rounded-md hover:bg-white/10 ml-2">
-                               <X className="w-4 h-4" />
+                             <button onClick={() => setSelectedFile(null)} className="text-white bg-rose-500 border-2 border-cyber-border hover:bg-rose-600 transition-colors p-1 ml-2 shadow-[2px_2px_0px_#000]">
+                               <X className="w-5 h-5" />
                              </button>
                            </div>
                            
-                           <div className="flex-1 prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-indigo-300 prose-headings:font-bold prose-headings:mt-6 prose-headings:mb-2 prose-ul:mt-2">
+                           <div className="flex-1 prose prose-invert prose-sm max-w-none normal-case font-mono font-normal prose-p:leading-relaxed prose-headings:text-cyber-primary prose-headings:font-bold prose-headings:mt-6 prose-headings:mb-2 prose-ul:mt-2">
                              {isExplaining ? (
                                <div className="flex flex-col gap-4 animate-pulse mt-4">
-                                 <div className="h-4 bg-white/10 rounded w-3/4"></div>
-                                 <div className="h-4 bg-white/10 rounded w-full"></div>
-                                 <div className="h-4 bg-white/10 rounded w-5/6"></div>
-                                 <div className="h-4 bg-white/10 rounded w-1/2 mt-4"></div>
+                                 <div className="h-4 bg-cyber-border w-3/4"></div>
+                                 <div className="h-4 bg-cyber-border w-full"></div>
+                                 <div className="h-4 bg-cyber-border w-5/6"></div>
+                                 <div className="h-4 bg-cyber-border w-1/2 mt-4"></div>
                                </div>
                              ) : (
                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{fileExplanation}</ReactMarkdown>
@@ -294,7 +378,7 @@ export default function MockInterviewPage() {
                      </AnimatePresence>
                    </>
                 ) : (
-                   <pre className="text-sm font-mono text-neutral-300 whitespace-pre overflow-x-auto p-6">
+                   <pre className="text-sm font-mono normal-case font-normal text-white whitespace-pre overflow-x-auto p-6">
                      {repoTree}
                    </pre>
                 )}
@@ -304,12 +388,10 @@ export default function MockInterviewPage() {
         </div>
 
         {/* Right Panel: Chat Interface */}
-        <div className="w-full lg:w-1/2 flex flex-col bg-neutral-900/20 relative">
+        <div className="w-full lg:w-1/2 flex flex-col bg-cyber-canvas relative">
           
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-rose-500/5 rounded-full blur-[100px] pointer-events-none" />
-
           {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
             {messages.map((msg, idx) => (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
@@ -317,10 +399,10 @@ export default function MockInterviewPage() {
                 key={idx} 
                 className={`flex gap-4 max-w-[85%] ${msg.role === "USER" ? "ml-auto flex-row-reverse" : ""}`}
               >
-                <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center ${msg.role === "USER" ? "bg-indigo-500 text-white" : "bg-rose-500/20 text-rose-400 border border-rose-500/30"}`}>
-                  {msg.role === "USER" ? <User className="w-5 h-5" /> : <Bot className="w-5 h-5" />}
+                <div className={`w-10 h-10 shrink-0 flex items-center justify-center border-2 border-cyber-border shadow-[2px_2px_0px_#000] ${msg.role === "USER" ? "bg-cyber-cyan text-black" : "bg-cyber-primary text-black"}`}>
+                  {msg.role === "USER" ? <User className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
                 </div>
-                <div className={`min-w-0 overflow-hidden p-4 rounded-2xl text-sm leading-relaxed ${msg.role === "USER" ? "bg-indigo-500 text-white rounded-tr-sm" : "bg-white/5 border border-white/10 text-neutral-300 rounded-tl-sm prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-neutral-900 prose-pre:border prose-pre:border-white/10"}`}>
+                <div className={`min-w-0 overflow-hidden p-5 border-2 border-cyber-border shadow-[4px_4px_0px_#000] text-sm leading-relaxed normal-case font-mono font-normal ${msg.role === "USER" ? "bg-white text-black" : "bg-cyber-panel text-white prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-[#0B0F19] prose-pre:border-2 prose-pre:border-cyber-border prose-pre:shadow-[4px_4px_0px_#000]"}`}>
                   {msg.role === "USER" ? (
                     msg.content
                   ) : (
@@ -346,21 +428,21 @@ export default function MockInterviewPage() {
           </div>
 
           {/* Chat Input */}
-          <div className="p-4 bg-neutral-900/50 border-t border-white/10 backdrop-blur-md">
+          <div className="p-6 bg-cyber-panel border-t-4 border-cyber-border">
             <form onSubmit={handleSend} className="relative flex items-center">
               <input 
                 type="text" 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Discuss your codebase or ask a question..."
-                className="w-full pl-4 pr-12 py-4 bg-neutral-950 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder:text-neutral-600"
+                placeholder="DISCUSS YOUR CODEBASE OR ASK A QUESTION..."
+                className="w-full pl-4 pr-16 py-4 bg-white border-4 border-cyber-border text-black shadow-[4px_4px_0px_#000] focus:outline-none focus:ring-0 placeholder:text-neutral-500 font-mono font-bold uppercase transition-all"
               />
               <button 
                 type="submit"
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 p-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-neutral-800 disabled:text-neutral-500 text-white rounded-lg transition-colors"
+                className="absolute right-2 p-3 bg-cyber-primary border-4 border-cyber-border hover:bg-[#A000D0] disabled:bg-neutral-800 disabled:text-neutral-500 text-black shadow-[2px_2px_0px_#000] transition-colors hover:translate-y-[1px] hover:translate-x-[1px]"
               >
-                {isLoading ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                {isLoading ? <div className="w-5 h-5 border-4 border-black border-t-transparent rounded-full animate-spin" /> : <Send className="w-5 h-5" />}
               </button>
             </form>
           </div>

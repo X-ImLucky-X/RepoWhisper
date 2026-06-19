@@ -6,15 +6,39 @@ from langchain_core.messages import HumanMessage, AIMessage
 from app.services.rag.ingestion import RAGIngestor
 
 class MockInterviewerAgent:
-    def __init__(self, repository_id: str, repo_summary: str = "", mode: str = "interview"):
+    def __init__(self, repository_id: str, repo_summary: str = "", mode: str = "interview", ai_model: str = "llama3_70b", response_style: str = "detailed"):
         self.repository_id = repository_id
-        self.repo_summary = repo_summary
+        # Truncate summary to max 2000 chars to avoid blowing up Groq's 12K TPM limit
+        self.repo_summary = repo_summary[:2000] + "..." if len(repo_summary) > 2000 else repo_summary
         self.mode = mode
-        self.llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.7)
-        self.retriever = RAGIngestor(repository_id).get_retriever()
+        self.response_style = response_style
+        
+        # Map frontend model string to actual Groq models
+        model_mapping = {
+            "llama3_70b": "llama-3.3-70b-versatile",
+            "llama3_8b": "llama-3.1-8b-instant",
+            "gpt_oss_120b": "openai/gpt-oss-120b",
+            "gpt_oss_20b": "openai/gpt-oss-20b"
+        }
+        actual_model = model_mapping.get(ai_model, "llama-3.3-70b-versatile")
+        
+        self.llm = ChatGroq(model=actual_model, temperature=0.7)
+        
+        # Override the retriever to only fetch top 3 instead of 5 to save context size
+        base_retriever = RAGIngestor(repository_id).get_retriever()
+        base_retriever.search_kwargs["k"] = 3
+        self.retriever = base_retriever
         self.qa_chain = self._build_chain()
         
     def _build_chain(self):
+        style_guide = ""
+        if self.response_style == "brief":
+            style_guide = "Be extremely brief and concise. Use bullet points. Do not write long paragraphs."
+        elif self.response_style == "code_heavy":
+            style_guide = "Prioritize showing code snippets in your explanation. Write concrete code examples to demonstrate your point."
+        else:
+            style_guide = "Be detailed and thoroughly explain architectural context."
+
         if self.mode == "walkthrough":
             system_prompt = (
                 "You are a friendly, patient, and highly experienced AI Tutor helping a developer understand their codebase. "
@@ -22,7 +46,7 @@ class MockInterviewerAgent:
                 f"### ARCHITECTURE SUMMARY:\n{self.repo_summary}\n\n###\n"
                 "Use the architecture summary above AND the following specific pieces of retrieved code context to explain how things work. "
                 "If you don't know the answer based on the context, politely let them know that you can't find it in their code. "
-                "Your goal is to be educational, supportive, and clear. Break down complex data flows or utility functions simply. "
+                f"Your goal is to be educational, supportive, and clear. {style_guide}\n"
                 "CRITICAL: You are equipped with a Mermaid.js rendering engine in your chat UI. Whenever the user asks for a Dependency Graph, Impact Analysis, Architecture Timeline, Call Flow Visualization, or Service Communication Map, you MUST output a valid ```mermaid code block visualizing the relationships. "
                 "MERMAID SYNTAX RULES: Use `graph TD;`. For labeled arrows, use `-->|label|`. Node labels MUST be wrapped in double quotes if they contain spaces or parentheses. Example: `A[\"Frontend (React)\"] -->|calls API| B[\"Backend (Node)\"];`. Do NOT output invalid arrows like `-->|label|>`."
                 "\n\nCode Context:\n{context}"
@@ -50,7 +74,7 @@ class MockInterviewerAgent:
                 source = doc.metadata.get("source", "Unknown file")
                 node_type = doc.metadata.get("node_type", "chunk")
                 node_name = doc.metadata.get("node_name", "anonymous")
-                formatted.append(f"--- File: {source} | Type: {node_type} | Name: {node_name} ---\n{doc.page_content}")
+                formatted.append(f"--- File: {source} | Type: {node_type} | Name: {node_name} ---\n{doc.page_content[:1500]}")
             return "\n\n".join(formatted)
 
         rag_chain = (
@@ -101,7 +125,7 @@ class MockInterviewerAgent:
                 source = doc.metadata.get("source", "Unknown file")
                 node_type = doc.metadata.get("node_type", "chunk")
                 node_name = doc.metadata.get("node_name", "anonymous")
-                formatted.append(f"--- File: {source} | Type: {node_type} | Name: {node_name} ---\n{doc.page_content}")
+                formatted.append(f"--- File: {source} | Type: {node_type} | Name: {node_name} ---\n{doc.page_content[:1500]}")
             return "\n\n".join(formatted)
 
         chain = (
