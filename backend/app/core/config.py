@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # CORS Allowed Origins
     BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
-        "https://repo-whisper-1024.vercel.app"
+        "https://repowhisper-frontend.onrender.com"
     ]
     
     # API Keys
