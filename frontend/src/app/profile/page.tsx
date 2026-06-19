@@ -55,9 +55,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchRepos = async () => {
-      if (session?.user?.id) {
+      if ((session?.user as any)?.id) {
         try {
-          const res = await fetch(`http://localhost:8000/api/v1/repos/user/${session.user.id}`);
+          const res = await fetch(`http://localhost:8000/api/v1/repos/user/${(session?.user as any).id}`);
           if (res.ok) {
             const data = await res.json();
             setRepositories(data);
@@ -141,7 +141,7 @@ export default function ProfilePage() {
           <div className="mt-auto pt-6">
             <button 
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="w-full py-3 px-4 flex items-center justify-center gap-3 text-sm text-black bg-rose-500 border-2 border-cyber-border shadow-[4px_4px_0px_#000] hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-[2px_2px_0px_#000] transition-all"
+              className="w-full py-3 px-4 flex items-center justify-center gap-3 text-sm text-black bg-rose-500 border-2 border-cyber-border shadow-[4px_4px_0px_#000] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-[2px_2px_0px_#000] transition-all"
             >
               <LogOut className="w-5 h-5" />
               SYSTEM LOGOUT
@@ -239,7 +239,7 @@ export default function ProfilePage() {
                             {repo.github_url?.replace("https://github.com/", "")}
                           </p>
                         </div>
-                        <Link href={`/repo/${repo.id}`} className="px-6 py-3 bg-cyber-cyan text-black border-2 border-cyber-border shadow-[4px_4px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000] transition-all whitespace-nowrap">
+                        <Link href={`/repo/${repo.id}`} className="px-6 py-3 bg-cyber-cyan text-black border-2 border-cyber-border shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000] transition-all whitespace-nowrap">
                           OPEN GRAPH
                         </Link>
                       </div>
@@ -347,7 +347,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
   return (
     <button 
       onClick={onClick}
-      className={`w-full text-left px-4 py-4 flex items-center gap-4 transition-all border-2 shadow-[4px_4px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000] ${
+      className={`w-full text-left px-4 py-4 flex items-center gap-4 transition-all border-2 shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000] ${
         active ? "bg-cyber-primary text-black border-cyber-border font-bold text-lg drop-shadow-[1px_1px_0px_#fff]" : "bg-cyber-panel text-white border-cyber-border hover:bg-cyber-cyan hover:text-black"
       }`}
     >
@@ -375,7 +375,7 @@ function RadioOption({ selected, onClick, label, sub }: { selected: boolean, onC
   return (
     <button 
       onClick={onClick}
-      className={`text-left p-5 border-4 transition-all shadow-[4px_4px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000] flex flex-col justify-between ${
+      className={`text-left p-5 border-4 transition-all shadow-[4px_4px_0px_#000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000] flex flex-col justify-between ${
         selected ? "bg-cyber-cyan text-black border-cyber-border" : "bg-cyber-canvas text-white border-cyber-border hover:bg-cyber-panel"
       }`}
     >
