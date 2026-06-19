@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./repowhisper.db"
     
+    # Vector Database
+    QDRANT_DB_DIR: str = "./qdrant_db"
+    
     # API Keys
     GOOGLE_API_KEY: str | None = None
     

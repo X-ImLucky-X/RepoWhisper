@@ -5,6 +5,7 @@ import { FolderGit2, Plus, ArrowRight, Activity, Search, LogOut, GitBranch, Chev
 import { signOut, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { API_BASE } from "../../config";
 
 interface Repo {
   id: string;
@@ -34,7 +35,7 @@ export default function Dashboard() {
     if (!(session?.user as any)?.id) return;
     const userId = (session?.user as any).id;
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/repos/user/${userId}`, {
+      const res = await fetch(`${API_BASE}/api/v1/repos/user/${userId}`, {
         headers: {
           "X-User-Id": userId
         }
@@ -98,7 +99,7 @@ export default function Dashboard() {
     const userId = (session?.user as any).id;
     
     try {
-      const res = await fetch("http://localhost:8000/api/v1/repos/import", {
+      const res = await fetch(`${API_BASE}/api/v1/repos/import`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -124,7 +125,7 @@ export default function Dashboard() {
     e.preventDefault();
     try {
       const userId = (session?.user as any)?.id || "";
-      const res = await fetch(`http://localhost:8000/api/v1/repos/${repoId}/retry`, {
+      const res = await fetch(`${API_BASE}/api/v1/repos/${repoId}/retry`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

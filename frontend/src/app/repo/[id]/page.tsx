@@ -6,6 +6,7 @@ import { Bot, Send, User, ChevronLeft, FileText, Code2, MessageSquareCode, Folde
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { API_BASE } from "../../../config";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import dynamic from "next/dynamic";
@@ -80,7 +81,7 @@ export default function MockInterviewPage() {
     // Fetch Repo Details (Cheat Sheet)
     const fetchRepo = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/repos/${repoId}`, {
+        const res = await fetch(`${API_BASE}/api/v1/repos/${repoId}`, {
           headers: {
             "X-User-Id": (session?.user as any)?.id || ""
           }
@@ -103,7 +104,7 @@ export default function MockInterviewPage() {
     // Fetch Chat History
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/v1/chat/history/${repoId}?mode=${chatMode}`, {
+        const res = await fetch(`${API_BASE}/api/v1/chat/history/${repoId}?mode=${chatMode}`, {
           headers: {
             "X-User-Id": (session?.user as any)?.id || ""
           }
@@ -152,7 +153,7 @@ export default function MockInterviewPage() {
       const aiModel = localStorage.getItem("rw_default_model") || "llama3_70b";
       const responseStyle = localStorage.getItem("rw_response_style") || "detailed";
 
-      const res = await fetch("http://localhost:8000/api/v1/chat/", {
+      const res = await fetch(`${API_BASE}/api/v1/chat/`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -187,7 +188,7 @@ export default function MockInterviewPage() {
         const aiModel = localStorage.getItem("rw_default_model") || "llama3";
         const responseStyle = localStorage.getItem("rw_response_style") || "detailed";
 
-        const res = await fetch(`http://localhost:8000/api/v1/chat/explain`, {
+        const res = await fetch(`${API_BASE}/api/v1/chat/explain`, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
