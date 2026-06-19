@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     # Vector Database
     QDRANT_DB_DIR: str = "./qdrant_db"
     
+    # CORS Allowed Origins
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:3000",
+        "https://repo-whisper-1024.vercel.app"
+    ]
+    
     # API Keys
     GOOGLE_API_KEY: str | None = None
     
