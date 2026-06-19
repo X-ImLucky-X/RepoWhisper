@@ -9,6 +9,12 @@ httpx
 langchain
 langchain-core
 langchain-google-genai
+langchain-groq
+langchain-huggingface
+langchain-qdrant
+qdrant-client
+tree-sitter-languages
+pathspec
 chromadb
 pytest
 slowapi
