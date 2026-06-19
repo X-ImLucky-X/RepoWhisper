@@ -16,7 +16,14 @@ class RAGIngestor:
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         
         os.makedirs(self.persist_directory, exist_ok=True)
-        self.client = QdrantClient(path=self.persist_directory)
+        # Prefer cloud endpoint if QDRANT_URL is defined
+        if getattr(settings, "QDRANT_URL", ""):
+            # QDRANT_URL may include the protocol, e.g., https://...
+            # Optional API key can be set via QDRANT_API_KEY env var if needed
+            api_key = getattr(settings, "QDRANT_API_KEY", "") or None
+            self.client = QdrantClient(url=settings.QDRANT_URL, api_key=api_key) if api_key else QdrantClient(url=settings.QDRANT_URL)
+        else:
+            self.client = QdrantClient(path=self.persist_directory)
         self.collection_name = f"repo_{repository_id}"
         
         try:

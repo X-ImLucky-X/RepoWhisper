@@ -6,10 +6,8 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     
     # Database
-    DATABASE_URL: str = "sqlite:///./repowhisper.db"
-    
-    # Vector Database
-    QDRANT_DB_DIR: str = "./qdrant_db"
+    DATABASE_URL: str = ""
+    QDRANT_URL: str = ""
     
     # CORS Allowed Origins
     BACKEND_CORS_ORIGINS: list[str] = [
@@ -23,7 +21,8 @@ class Settings(BaseSettings):
     GITHUB_ID: str | None = None
     GITHUB_SECRET: str | None = None
     NEXTAUTH_SECRET: str | None = None
-    NEXTAUTH_URL: str | None = None
+    QDRANT_API_KEY: str = ""
+    
     
     class Config:
         case_sensitive = True
