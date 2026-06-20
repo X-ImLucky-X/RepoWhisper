@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [loadingGithub, setLoadingGithub] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pollDelay, setPollDelay] = useState(3000);
 
   const fetchRepos = async () => {
     if (!(session?.user as any)?.id) return;
@@ -79,19 +80,20 @@ export default function Dashboard() {
     fetchGithubRepos();
   }, [session]);
 
-  // Poll for status updates if any repo is currently parsing
+  // Poll for status updates if any repo is currently parsing (exponential backoff)
+  const parsingStatusKey = repos.map(r => `${r.id}:${r.status}`).join(",");
   useEffect(() => {
     const needsPolling = repos.some(r => r.status === "PENDING" || r.status === "PARSING");
-    let interval: NodeJS.Timeout;
-    if (needsPolling) {
-      interval = setInterval(() => {
-        fetchRepos();
-      }, 3000);
+    if (!needsPolling) {
+      setPollDelay(3000); // Reset delay
+      return;
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [repos]);
+    const timer = setTimeout(async () => {
+      await fetchRepos();
+      setPollDelay(prev => Math.min(prev * 1.5, 30000));
+    }, pollDelay);
+    return () => clearTimeout(timer);
+  }, [parsingStatusKey, pollDelay]);
 
   const handleImport = async (url: string) => {
     if (!(session?.user as any)?.id) return alert("Please sign in first");

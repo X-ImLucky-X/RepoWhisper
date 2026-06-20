@@ -106,6 +106,26 @@ def retry_repository(request: Request, repo_id: str, req: RepoRetryRequest, back
 def get_user_repos(request: Request, user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access these repositories")
+    
+    # Self-heal stuck PARSING or PENDING repositories (timeout > 10 minutes)
+    from datetime import datetime, timezone
+    repos = db.query(Repository).filter(Repository.user_id == user_id).all()
+    updated = False
+    for r in repos:
+        if r.status in [RepoStatus.PARSING, RepoStatus.PENDING]:
+            created_at = r.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            age_mins = (now - created_at).total_seconds() / 60.0
+            if age_mins > 10.0:
+                r.status = RepoStatus.FAILED
+                r.summary = "Error: Ingestion timeout. Processing took more than 10 minutes. Please click RETRY."
+                updated = True
+    if updated:
+        db.commit()
+
+    # Re-query sorted repos
     repos = db.query(Repository).filter(Repository.user_id == user_id).order_by(Repository.created_at.desc()).all()
     import json
     def get_score(scorecard_str):
