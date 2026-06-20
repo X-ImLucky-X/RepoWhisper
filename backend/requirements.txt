@@ -12,7 +12,8 @@ langchain-google-genai
 langchain-groq
 langchain-qdrant
 qdrant-client
-tree-sitter-languages
+tree-sitter==0.21.3
+tree-sitter-languages==1.10.2
 pathspec
 chromadb
 pytest
