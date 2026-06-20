@@ -13,7 +13,7 @@ class RAGIngestor:
     def __init__(self, repository_id: str, persist_directory: Optional[str] = None):
         self.repository_id = repository_id
         self.persist_directory = persist_directory or settings.QDRANT_DB_DIR
-        self.embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
+        self.embeddings = FastEmbedEmbeddings(model_name="snowflake/snowflake-arctic-embed-xs")
         
         os.makedirs(self.persist_directory, exist_ok=True)
         # Prefer cloud endpoint if QDRANT_URL is defined
