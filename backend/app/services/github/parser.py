@@ -36,7 +36,7 @@ class GitHubParser:
                 if len(parts) >= 2:
                     owner, repo = parts[-2], parts[-1]
                     api_url = f"https://api.github.com/repos/{owner}/{repo}"
-                    headers = {{"Authorization": f"token {self.access_token}"}} if self.access_token else {{}}
+                    headers = {"Authorization": f"token {self.access_token}"} if self.access_token else {}
                     res = requests.get(api_url, headers=headers)
                     if res.status_code == 200:
                         repo_size_kb = res.json().get("size", 0)

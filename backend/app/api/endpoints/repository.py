@@ -51,6 +51,8 @@ def process_repository(repo_id: str, github_url: str, access_token: str, db: Ses
 
     except Exception as e:
         # On failure, mark as FAILED
+        import traceback
+        traceback.print_exc()
         from app.core.security import sanitize_secrets
         sanitized_error = sanitize_secrets(str(e), [access_token] if access_token else None)
         repo = db.query(Repository).filter(Repository.id == repo_id).first()
