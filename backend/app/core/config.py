@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = ""
     QDRANT_URL: str = ""
+    QDRANT_DB_DIR: str = "qdrant_db"
     
     # CORS Allowed Origins
     BACKEND_CORS_ORIGINS: list[str] = [
