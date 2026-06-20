@@ -97,8 +97,10 @@ def retry_repository(request: Request, repo_id: str, req: RepoRetryRequest, back
     if repo.status != RepoStatus.FAILED:
         raise HTTPException(status_code=400, detail="Only failed repositories can be retried")
 
+    from datetime import datetime
     repo.status = RepoStatus.PENDING
     repo.summary = None
+    repo.created_at = datetime.utcnow()
     db.commit()
 
     background_tasks.add_task(process_repository, str(repo.id), repo.github_url, req.access_token)

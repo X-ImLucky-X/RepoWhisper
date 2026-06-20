@@ -39,7 +39,7 @@ async def add_security_headers(request: Request, call_next):
 @app.get("/")
 @limiter.limit("5/minute")
 def root(request: Request):
-    return {"message": "Welcome to the RepoWhisper API", "version": "1.0.3-git-prompt-fixed"}
+    return {"message": "Welcome to the RepoWhisper API", "version": "1.0.4-created-at-retry-fixed"}
 
 api_router = APIRouter()
 api_router.include_router(repository.router, prefix="/repos", tags=["repositories"])
