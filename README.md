@@ -1,102 +1,235 @@
-# RepoWhisper 🧠💻
+# 🌌 RepoWhisper
 
-**RepoWhisper** is an AI-powered architectural command center for your codebases. It automatically ingests GitHub repositories, builds a 3D Knowledge Graph of the architecture, and grades the codebase with an automated Architecture Scorecard. It also features a built-in AI Tutor to walk you through the codebase or conduct technical mock interviews based on your actual code.
-
-![Cyberpunk Brutalism UI](https://img.shields.io/badge/UI-Cyberpunk_Brutalism-BD00FF?style=flat-square)
-![Next.js](https://img.shields.io/badge/Frontend-Next.js_14-black?style=flat-square&logo=next.js)
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)
-![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_pgvector-336791?style=flat-square&logo=postgresql)
+### AI-Powered Architectural Command Center for Modern Codebases
 
 ---
 
-## 🔥 Key Features
+## 📖 Introduction
 
-- **Automated Ingestion**: Paste a GitHub URL and RepoWhisper will clone, parse, and analyze the AST (Abstract Syntax Tree) of the codebase.
-- **Architecture Scorecard**: AI acts as a Principal Engineer to grade the codebase (0-100), detecting circular dependencies, dead files, and security risks.
-- **3D Knowledge Graph**: Explore your codebase visually. See how files and components relate to each other in a 3D force-directed graph.
-- **AI Walkthrough Tutor**: Select any file in the 3D graph and the AI will provide an "Explain Like I'm New" breakdown.
-- **Mock Interviewer**: Test your knowledge! The AI will conduct a technical interview based entirely on the architecture of the repository you imported.
-- **Developer Control Center**: A brutalist dashboard to manage indexed repositories, configure AI models (Llama 3.3, GPT), and set response styles.
-- **GitHub Integration**: Sign in with GitHub via NextAuth for a seamless developer experience.
+> **Stop reading codebases. Start understanding them.**
+
+**RepoWhisper** is an AI-powered developer platform that automatically analyzes repositories, visualizes software architecture, evaluates code quality, and teaches developers how a codebase works through interactive AI explanations.
+
+Whether you're onboarding to a new project, conducting architecture reviews, preparing for technical interviews, or exploring an open-source repository, RepoWhisper acts as your personal **Principal Engineer**.
+
+---
+
+## ✨ Features
+
+### 🚀 Automated Repository Ingestion
+
+Simply paste a GitHub repository URL, and RepoWhisper will:
+
+- **Clone & index** the repository seamlessly.
+- **Parse source files** using `Tree-sitter` for accurate AST parsing.
+- **Build dependency relationships** across the entire codebase.
+- **Extract architectural metadata** to map out components.
+- **Generate embeddings** for deep semantic understanding.
+
+### 🌌 Interactive 3D Architecture Graph
+
+Visualize your codebase as a force-directed 3D knowledge graph.
+
+- File dependency visualization and component relationship mapping.
+- Interactive node exploration with color-coded architecture layers.
+- Full zoom, rotate, and inspect functionality.
+
+> Instead of navigating folders manually, developers can explore architecture visually.
+
+### 📊 AI Architecture Scorecard
+
+Every repository receives an AI-generated health assessment analyzing:
+
+- Circular dependencies & unused/dead files.
+- Structural complexity & code organization.
+- Potential security concerns & maintainability indicators.
+
+> Provides a health score from **0–100** along with actionable recommendations.
+
+### 🎓 AI Walkthrough Tutor
+
+Click any file in the architecture graph and receive an instant explanation:
+
+- *What does this file do and why does it exist?*
+- *Which files depend on it and how does it fit into the system?*
+- *What would break if it changed?*
+
+### 🎤 AI Mock Interviewer
+
+Turn any repository into an interview simulator. RepoWhisper can:
+
+- Generate architecture questions based on the ingested code.
+- Ask targeted system design follow-ups.
+- Test repository understanding and evaluate reasoning/trade-offs.
+
+### ⚙️ Developer Control Center
+
+Manage repositories and AI settings from a centralized dashboard. Configure AI model selection, response verbosity, analysis depth, and general user preferences.
+
+---
+
+## 🏗️ System Architecture
+
+```text
+GitHub Repository
+        │
+        ▼
+Repository Ingestion Service
+        │
+        ▼
+Tree-sitter AST Parsing
+        │
+        ▼
+Dependency Graph Builder
+        │
+        ▼
+Embedding Generator
+        │
+        ▼
+PostgreSQL + pgvector
+        │
+        ├────────────► AI Scorecard Engine
+        │
+        ├────────────► Walkthrough Tutor
+        │
+        └────────────► Mock Interview Engine
+                              │
+                              ▼
+                    Next.js Frontend
+                              │
+                              ▼
+                Interactive 3D Graph UI
+```
+
+---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Framework**: [Next.js 14](https://nextjs.org/) (App Router)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **UI Aesthetic**: Cyberpunk Brutalism ("Synthetix" Theme)
-- **Animations**: [Framer Motion](https://www.framer.com/motion/)
-- **Visualizations**: `react-force-graph-3d` for the Knowledge Graph, `mermaid` for flowcharts
-- **Authentication**: `next-auth` (GitHub OAuth)
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 14 (App Router), React |
+| Styling & Animation | Tailwind CSS v4, Framer Motion |
+| 3D Visualization | React Force Graph 3D, Three.js |
+| Authentication | NextAuth |
 
 ### Backend
-- **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python)
-- **Database**: PostgreSQL (with `pgvector` for semantic search) / Supabase
-- **AI / LLMs**: Support for Llama 3.3 70B, GPT-4, and open-source models
-- **Parsing**: Tree-sitter for deep code intelligence
 
-## 🚀 Getting Started
+| Layer | Technology |
+|---|---|
+| Framework | FastAPI (Python) |
+| Database | PostgreSQL + `pgvector` |
+| Parser | Tree-sitter |
 
-### Prerequisites
-- Node.js (v18+)
-- Python 3.10+
-- PostgreSQL database
-- GitHub OAuth application credentials
+### AI Layer
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/yourusername/RepoWhisper.git
-cd RepoWhisper
-```
+| Layer | Technology |
+|---|---|
+| Orchestration | LangChain |
+| LLMs | OpenAI Models, Llama Models |
+| Architecture | RAG & Vector Embeddings |
 
-### 2. Backend Setup
-Navigate to the backend directory and set up your Python environment:
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-Set your environment variables (create a `.env` file):
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/repowhisper
-OPENAI_API_KEY=your_api_key
-```
-Start the FastAPI server:
-```bash
-uvicorn app.main:app --reload --port 8000
-```
+### Infrastructure
 
-### 3. Frontend Setup
-Open a new terminal, navigate to the frontend directory:
-```bash
-cd frontend
-npm install
-```
-Set up your Next.js environment variables (create a `.env.local` file):
-```env
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_nextauth_secret
-GITHUB_ID=your_github_oauth_client_id
-GITHUB_SECRET=your_github_oauth_client_secret
-```
-Run the development server:
-```bash
-npm run dev
-```
-
-### 4. Open the App
-Visit `http://localhost:3000` in your browser. Sign in with GitHub, paste a repository URL into the Dashboard, and let the AI go to work!
+| Layer | Technology |
+|---|---|
+| Integrations | GitHub OAuth |
+| Deployment | Docker, REST APIs |
 
 ---
 
-## 🎨 Design System: Synthetix Brutalism
-The UI intentionally rejects soft gradients and rounded corners in favor of high-contrast, aggressive styling:
-- **Background**: `#0B0F19` (Deep space canvas)
-- **Panels**: `#121826` (Elevated boxes)
-- **Primary Accent**: `#BD00FF` (Electric purple)
-- **Secondary Accent**: `#00E0FF` (Cyber cyan)
-- **Borders & Shadows**: Heavy 4px solid borders with hard `4px 4px 0px #000` drop shadows.
+## 🎨 Design Philosophy
 
-## 📄 License
-This project is licensed under the MIT License.
+RepoWhisper uses a custom **Cyberpunk Brutalism** design language to make code exploration feel like navigating a futuristic command center rather than reading documentation.
+
+### Synthetix Design System
+
+| Element | Specification |
+|---|---|
+| **Background Canvas** | Deep Space Obsidian `#0B0F19` |
+| **Primary Accent** | Electric Purple `#BD00FF` |
+| **Secondary Accent** | Bright Cyan `#00E0FF` |
+| **Borders** | Hard `4px` Solid Black |
+| **Shadows** | Brutalist Hard Rigid Drop Shadows |
+
+---
+
+## 🎯 Use Cases
+
+- **New Team Members** — Understand large codebases in minutes instead of days.
+- **Open Source Contributors** — Quickly discover architecture before making contributions.
+- **Engineering Managers** — Review repository health and identify structural technical debt.
+- **Students** — Learn how real-world production software systems are structured.
+- **Interview Candidates** — Practice system design discussions using actual enterprise repositories.
+
+---
+
+## 📸 Screenshots
+
+#### Landing Page
+![Landing Page](ScreenShots/Main%20page.png)
+
+#### Repository Dashboard & 3D Knowledge Graph
+![Knowledge Graph](ScreenShots/Know%20Graph.png)
+
+![Dashboard](ScreenShots/dashboard.png)
+
+#### Architecture Scorecard & AI Tutor
+![Summary Page](ScreenShots/Summary%20Page.png)
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/X-ImLucky-X/RepoWhisper.git
+cd RepoWhisper
+```
+
+### 2. Frontend Setup
+
+```bash
+npm install
+npm run dev
+```
+
+### 3. Backend Setup
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+### 4. Environment Variables
+
+Create a `.env` file in your root/backend directories and populate the following:
+
+```env
+OPENAI_API_KEY=your_openai_key
+DATABASE_URL=your_postgresql_url
+NEXTAUTH_SECRET=your_nextauth_secret
+GITHUB_CLIENT_ID=your_github_id
+GITHUB_CLIENT_SECRET=your_github_secret
+```
+
+---
+
+## 👨‍💻 Author
+
+**Lakshya Kumar Singh**  
+Passionate about AI, software engineering, system design, and building tools that help developers understand complex systems faster.
+
+- **GitHub:** [@X-ImLucky-X](https://github.com/X-ImLucky-X)
+- **LinkedIn:** [Lakshya Kumar Singh](https://www.linkedin.com/in/lakshya-kumar-singh-62142128b/)
+
+---
+
+## ⭐ Why RepoWhisper?
+
+Modern codebases are becoming larger, more distributed, and harder to understand. **RepoWhisper** transforms raw repositories into visual, searchable, and explainable systems — giving developers profound architectural insight instead of forcing them to manually reverse-engineer thousands of lines of legacy code.
+
+> **Understand architecture. Faster. Smarter. Visually.**
