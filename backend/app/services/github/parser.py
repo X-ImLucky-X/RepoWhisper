@@ -49,7 +49,11 @@ class GitHubParser:
                 base_url = clone_url.rstrip("/")
                 if base_url.startswith("https://"):
                     clone_url = base_url.replace("https://", f"https://x-access-token:{self.access_token}@")
-            subprocess.run(["git", "clone", "--depth", "1", clone_url, self.temp_dir], check=True, capture_output=True)
+            
+            # Disable terminal prompting to prevent hanging on authentication errors
+            env = os.environ.copy()
+            env["GIT_TERMINAL_PROMPT"] = "0"
+            subprocess.run(["git", "clone", "--depth", "1", clone_url, self.temp_dir], check=True, capture_output=True, env=env)
         except subprocess.CalledProcessError as e:
             self.cleanup()
             from app.core.security import sanitize_secrets
