@@ -10,8 +10,6 @@ langchain
 langchain-core
 langchain-google-genai
 langchain-groq
-langchain-huggingface
-sentence-transformers
 langchain-qdrant
 qdrant-client
 tree-sitter-languages

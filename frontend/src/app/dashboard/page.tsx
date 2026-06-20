@@ -168,6 +168,8 @@ export default function Dashboard() {
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white" />
               <input 
+                id="search-repos"
+                name="search-repos"
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -299,6 +301,8 @@ export default function Dashboard() {
               <form onSubmit={(e) => { e.preventDefault(); handleImport(repoUrl); }} className="space-y-4 relative z-10">
                 <div>
                   <input 
+                    id="import-repo-url"
+                    name="import-repo-url"
                     type="url" 
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}

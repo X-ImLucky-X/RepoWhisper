@@ -451,6 +451,8 @@ export default function MockInterviewPage() {
           <div className="p-4 sm:p-6 bg-cyber-panel border-t-4 border-cyber-border flex justify-center">
             <form onSubmit={handleSend} className="relative flex items-center w-full max-w-4xl">
               <input 
+                id="chat-input"
+                name="chat-input"
                 type="text" 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
