@@ -4,6 +4,7 @@ load_dotenv()
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
+import app.db.base
 from app.api.endpoints import repository, chat
 from app.core.rate_limit import limiter
 from slowapi import _rate_limit_exceeded_handler

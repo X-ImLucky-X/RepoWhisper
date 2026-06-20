@@ -1,6 +1,6 @@
 import os
 from typing import List, Dict, Optional
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
@@ -13,7 +13,7 @@ class RAGIngestor:
     def __init__(self, repository_id: str, persist_directory: Optional[str] = None):
         self.repository_id = repository_id
         self.persist_directory = persist_directory or settings.QDRANT_DB_DIR
-        self.embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-2", output_dimensionality=384)
+        self.embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
         
         os.makedirs(self.persist_directory, exist_ok=True)
         # Prefer cloud endpoint if QDRANT_URL is defined
@@ -97,13 +97,10 @@ class RAGIngestor:
                 documents.append(doc)
 
         if documents:
-            import time
-            batch_size = 20
+            batch_size = 100
             for i in range(0, len(documents), batch_size):
                 batch = documents[i : i + batch_size]
                 self.vector_store.add_documents(batch)
-                if i + batch_size < len(documents):
-                    time.sleep(4.0)
 
     def get_retriever(self):
         # We can retrieve Top 5 specific function/class nodes now to save tokens

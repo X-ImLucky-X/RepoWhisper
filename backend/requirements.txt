@@ -8,9 +8,10 @@ python-dotenv
 httpx
 langchain
 langchain-core
-langchain-google-genai
 langchain-groq
 langchain-qdrant
+fastembed
+langchain-community
 qdrant-client
 tree-sitter==0.21.3
 tree-sitter-languages==1.10.2
