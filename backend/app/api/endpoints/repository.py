@@ -12,7 +12,9 @@ from app.api.deps import get_current_user_id, verify_repo_ownership
 
 router = APIRouter()
 
-def process_repository(repo_id: str, github_url: str, access_token: str, db: Session):
+def process_repository(repo_id: str, github_url: str, access_token: str):
+    from app.db.session import SessionLocal
+    db = SessionLocal()
     try:
         # Update status to PARSING
         repo = db.query(Repository).filter(Repository.id == repo_id).first()
@@ -61,6 +63,8 @@ def process_repository(repo_id: str, github_url: str, access_token: str, db: Ses
             repo.summary = f"Error: {sanitized_error}"
             db.commit()
         print(f"Error processing repository {repo_id}: {sanitized_error}")
+    finally:
+        db.close()
 
 @router.post("/import", response_model=RepoImportResponse)
 @limiter.limit("5/minute")
@@ -79,7 +83,7 @@ def import_repository(request: Request, req: RepoImportRequest, background_tasks
     db.refresh(new_repo)
 
     # Dispatch background task
-    background_tasks.add_task(process_repository, str(new_repo.id), str(req.github_url), req.access_token, db)
+    background_tasks.add_task(process_repository, str(new_repo.id), str(req.github_url), req.access_token)
 
     return RepoImportResponse(
         id=new_repo.id,
@@ -97,7 +101,7 @@ def retry_repository(request: Request, repo_id: str, req: RepoRetryRequest, back
     repo.summary = None
     db.commit()
 
-    background_tasks.add_task(process_repository, str(repo.id), repo.github_url, req.access_token, db)
+    background_tasks.add_task(process_repository, str(repo.id), repo.github_url, req.access_token)
 
     return {"message": "Retry started"}
 
