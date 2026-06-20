@@ -113,7 +113,7 @@ def get_user_repos(request: Request, user_id: str, db: Session = Depends(get_db)
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access these repositories")
     
-    # Self-heal stuck PARSING or PENDING repositories (timeout > 10 minutes)
+    # Self-heal stuck PARSING or PENDING repositories (timeout > 30 minutes)
     from datetime import datetime, timezone
     repos = db.query(Repository).filter(Repository.user_id == user_id).all()
     updated = False
@@ -124,9 +124,9 @@ def get_user_repos(request: Request, user_id: str, db: Session = Depends(get_db)
                 created_at = created_at.replace(tzinfo=timezone.utc)
             now = datetime.now(timezone.utc)
             age_mins = (now - created_at).total_seconds() / 60.0
-            if age_mins > 10.0:
+            if age_mins > 30.0:
                 r.status = RepoStatus.FAILED
-                r.summary = "Error: Ingestion timeout. Processing took more than 10 minutes. Please click RETRY."
+                r.summary = "Error: Ingestion timeout. Processing took more than 30 minutes. Please click RETRY."
                 updated = True
     if updated:
         db.commit()
