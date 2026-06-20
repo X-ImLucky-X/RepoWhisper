@@ -83,6 +83,8 @@ class RAGIngestor:
         for file in files:
             chunks = self._parse_ast_chunks(file["path"], file["content"])
             for chunk in chunks:
+                if not chunk["content"] or not chunk["content"].strip():
+                    continue
                 doc = Document(
                     page_content=chunk["content"],
                     metadata={
