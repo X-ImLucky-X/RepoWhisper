@@ -95,7 +95,13 @@ class RAGIngestor:
                 documents.append(doc)
 
         if documents:
-            self.vector_store.add_documents(documents)
+            import time
+            batch_size = 20
+            for i in range(0, len(documents), batch_size):
+                batch = documents[i : i + batch_size]
+                self.vector_store.add_documents(batch)
+                if i + batch_size < len(documents):
+                    time.sleep(4.0)
 
     def get_retriever(self):
         # We can retrieve Top 5 specific function/class nodes now to save tokens
