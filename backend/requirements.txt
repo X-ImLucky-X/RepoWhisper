@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-SQLAlchemy
+sqlalchemy
 alembic
 pydantic
 pydantic-settings
@@ -10,12 +10,10 @@ langchain
 langchain-core
 langchain-groq
 langchain-qdrant
-fastembed
-langchain-community
+langchain-huggingface
 qdrant-client
 tree-sitter==0.21.3
 tree-sitter-languages==1.10.2
 pathspec
-pytest
 slowapi
-psycopg2-binary==2.9.9
+pytest

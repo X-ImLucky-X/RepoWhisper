@@ -4,7 +4,6 @@ load_dotenv()
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-import app.db.base
 from app.api.endpoints import repository, chat
 from app.core.rate_limit import limiter
 from slowapi import _rate_limit_exceeded_handler
@@ -22,7 +21,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Set up CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,7 +38,7 @@ async def add_security_headers(request: Request, call_next):
 @app.get("/")
 @limiter.limit("5/minute")
 def root(request: Request):
-    return {"message": "Welcome to the RepoWhisper API", "version": "1.0.5-timeout-30min"}
+    return {"message": "Welcome to the RepoWhisper API"}
 
 api_router = APIRouter()
 api_router.include_router(repository.router, prefix="/repos", tags=["repositories"])

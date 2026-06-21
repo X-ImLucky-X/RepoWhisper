@@ -5,7 +5,6 @@ import { FolderGit2, Plus, ArrowRight, Activity, Search, LogOut, GitBranch, Chev
 import { signOut, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { API_BASE } from "../../config";
 
 interface Repo {
   id: string;
@@ -30,13 +29,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [loadingGithub, setLoadingGithub] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [pollDelay, setPollDelay] = useState(3000);
 
   const fetchRepos = async () => {
     if (!(session?.user as any)?.id) return;
     const userId = (session?.user as any).id;
     try {
-      const res = await fetch(`${API_BASE}/api/v1/repos/user/${userId}`, {
+      const res = await fetch(`http://localhost:8000/api/v1/repos/user/${userId}`, {
         headers: {
           "X-User-Id": userId
         }
@@ -80,20 +78,19 @@ export default function Dashboard() {
     fetchGithubRepos();
   }, [session]);
 
-  // Poll for status updates if any repo is currently parsing (exponential backoff)
-  const parsingStatusKey = repos.map(r => `${r.id}:${r.status}`).join(",");
+  // Poll for status updates if any repo is currently parsing
   useEffect(() => {
     const needsPolling = repos.some(r => r.status === "PENDING" || r.status === "PARSING");
-    if (!needsPolling) {
-      setPollDelay(3000); // Reset delay
-      return;
+    let interval: NodeJS.Timeout;
+    if (needsPolling) {
+      interval = setInterval(() => {
+        fetchRepos();
+      }, 3000);
     }
-    const timer = setTimeout(async () => {
-      await fetchRepos();
-      setPollDelay(prev => Math.min(prev * 1.5, 30000));
-    }, pollDelay);
-    return () => clearTimeout(timer);
-  }, [parsingStatusKey, pollDelay]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [repos]);
 
   const handleImport = async (url: string) => {
     if (!(session?.user as any)?.id) return alert("Please sign in first");
@@ -101,7 +98,7 @@ export default function Dashboard() {
     const userId = (session?.user as any).id;
     
     try {
-      const res = await fetch(`${API_BASE}/api/v1/repos/import`, {
+      const res = await fetch("http://localhost:8000/api/v1/repos/import", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -127,7 +124,7 @@ export default function Dashboard() {
     e.preventDefault();
     try {
       const userId = (session?.user as any)?.id || "";
-      const res = await fetch(`${API_BASE}/api/v1/repos/${repoId}/retry`, {
+      const res = await fetch(`http://localhost:8000/api/v1/repos/${repoId}/retry`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -170,8 +167,6 @@ export default function Dashboard() {
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white" />
               <input 
-                id="search-repos"
-                name="search-repos"
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -303,8 +298,6 @@ export default function Dashboard() {
               <form onSubmit={(e) => { e.preventDefault(); handleImport(repoUrl); }} className="space-y-4 relative z-10">
                 <div>
                   <input 
-                    id="import-repo-url"
-                    name="import-repo-url"
                     type="url" 
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}

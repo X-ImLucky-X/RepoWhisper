@@ -17,8 +17,8 @@ class MockInterviewerAgent:
         model_mapping = {
             "llama3_70b": "llama-3.3-70b-versatile",
             "llama3_8b": "llama-3.1-8b-instant",
-            "gpt_oss_120b": "mixtral-8x7b-32768",
-            "gpt_oss_20b": "gemma2-9b-it"
+            "gpt_oss_120b": "openai/gpt-oss-120b",
+            "gpt_oss_20b": "openai/gpt-oss-20b"
         }
         actual_model = model_mapping.get(ai_model, "llama-3.3-70b-versatile")
         

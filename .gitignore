@@ -1,26 +1,41 @@
-# Node.js
+# Node.js / Next.js
 node_modules/
 .next/
+out/
 dist/
 build/
-.env.local
 
-# Python
+# Python / Virtual Environments
 __pycache__/
 *.py[cod]
 *$py.class
 venv/
+.venv/
 env/
-.env
+.env/
+ENV/
 
-# Database & Storage
+# Environment configurations (ignore all env files except templates)
+.env*
+!.env.example
+*.env
+
+# Database & Vector DB
 *.sqlite3
 *.db
+db.sqlite3
+repowhisper.db
+qdrant_db/
 qdrant_storage/
-backend/qdrant_db/
+chroma_db/
 
-# IDE & OS
+# OS / IDE
 .vscode/
 .idea/
 .DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
 Thumbs.db

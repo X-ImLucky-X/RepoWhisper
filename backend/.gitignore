@@ -1,10 +1,14 @@
-# Python
+# Python / Virtual Environments
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 env/
+.env/
+venv/
+.venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -22,20 +26,16 @@ share/python-wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
-venv/
-env/
-ENV/
+# Environment configurations (ignore all env files except templates)
+.env*
+!.env.example
+*.env
 
-# Environments
-.env
-.venv
-
-# Database
+# Database & Vector DB
 *.sqlite3
 *.db
+db.sqlite3
+repowhisper.db
 alembic/versions/*.pyc
-
-# Vector DB
 chroma_db/
 qdrant_db/

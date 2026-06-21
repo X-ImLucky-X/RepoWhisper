@@ -1,29 +1,20 @@
 import os
-from typing import List, Dict, Optional
-from langchain_community.embeddings import FastEmbedEmbeddings
+from typing import List, Dict
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from langchain_core.documents import Document
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams
 from tree_sitter_languages import get_parser
 
-from app.core.config import settings
-
 class RAGIngestor:
-    def __init__(self, repository_id: str, persist_directory: Optional[str] = None):
+    def __init__(self, repository_id: str, persist_directory: str = "./qdrant_db"):
         self.repository_id = repository_id
-        self.persist_directory = persist_directory or settings.QDRANT_DB_DIR
-        self.embeddings = FastEmbedEmbeddings(model_name="snowflake/snowflake-arctic-embed-xs")
+        self.persist_directory = persist_directory
+        self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
         
         os.makedirs(self.persist_directory, exist_ok=True)
-        # Prefer cloud endpoint if QDRANT_URL is defined
-        if getattr(settings, "QDRANT_URL", ""):
-            # QDRANT_URL may include the protocol, e.g., https://...
-            # Optional API key can be set via QDRANT_API_KEY env var if needed
-            api_key = getattr(settings, "QDRANT_API_KEY", "") or None
-            self.client = QdrantClient(url=settings.QDRANT_URL, api_key=api_key) if api_key else QdrantClient(url=settings.QDRANT_URL)
-        else:
-            self.client = QdrantClient(path=self.persist_directory)
+        self.client = QdrantClient(path=self.persist_directory)
         self.collection_name = f"repo_{repository_id}"
         
         try:
@@ -83,8 +74,6 @@ class RAGIngestor:
         for file in files:
             chunks = self._parse_ast_chunks(file["path"], file["content"])
             for chunk in chunks:
-                if not chunk["content"] or not chunk["content"].strip():
-                    continue
                 doc = Document(
                     page_content=chunk["content"],
                     metadata={
@@ -97,10 +86,7 @@ class RAGIngestor:
                 documents.append(doc)
 
         if documents:
-            batch_size = 100
-            for i in range(0, len(documents), batch_size):
-                batch = documents[i : i + batch_size]
-                self.vector_store.add_documents(batch)
+            self.vector_store.add_documents(documents)
 
     def get_retriever(self):
         # We can retrieve Top 5 specific function/class nodes now to save tokens

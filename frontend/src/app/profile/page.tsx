@@ -6,7 +6,6 @@ import { ChevronLeft, LogOut, User as UserIcon, LayoutDashboard, Database, Setti
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { API_BASE } from "../../config";
 import Image from "next/image";
 
 function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -58,7 +57,7 @@ export default function ProfilePage() {
     const fetchRepos = async () => {
       if ((session?.user as any)?.id) {
         try {
-          const res = await fetch(`${API_BASE}/api/v1/repos/user/${(session?.user as any).id}`, {
+          const res = await fetch(`http://localhost:8000/api/v1/repos/user/${(session?.user as any).id}`, {
             headers: {
               "X-User-Id": (session?.user as any).id
             }

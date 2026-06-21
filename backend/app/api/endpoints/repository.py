@@ -14,6 +14,7 @@ router = APIRouter()
 
 def process_repository(repo_id: str, github_url: str, access_token: str):
     from app.db.session import SessionLocal
+    import traceback
     db = SessionLocal()
     try:
         # Update status to PARSING
@@ -52,9 +53,8 @@ def process_repository(repo_id: str, github_url: str, access_token: str):
         db.commit()
 
     except Exception as e:
-        # On failure, mark as FAILED
-        import traceback
         traceback.print_exc()
+        # On failure, mark as FAILED
         from app.core.security import sanitize_secrets
         sanitized_error = sanitize_secrets(str(e), [access_token] if access_token else None)
         repo = db.query(Repository).filter(Repository.id == repo_id).first()
@@ -97,10 +97,8 @@ def retry_repository(request: Request, repo_id: str, req: RepoRetryRequest, back
     if repo.status != RepoStatus.FAILED:
         raise HTTPException(status_code=400, detail="Only failed repositories can be retried")
 
-    from datetime import datetime
     repo.status = RepoStatus.PENDING
     repo.summary = None
-    repo.created_at = datetime.utcnow()
     db.commit()
 
     background_tasks.add_task(process_repository, str(repo.id), repo.github_url, req.access_token)
@@ -112,26 +110,6 @@ def retry_repository(request: Request, repo_id: str, req: RepoRetryRequest, back
 def get_user_repos(request: Request, user_id: str, db: Session = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Not authorized to access these repositories")
-    
-    # Self-heal stuck PARSING or PENDING repositories (timeout > 30 minutes)
-    from datetime import datetime, timezone
-    repos = db.query(Repository).filter(Repository.user_id == user_id).all()
-    updated = False
-    for r in repos:
-        if r.status in [RepoStatus.PARSING, RepoStatus.PENDING]:
-            created_at = r.created_at
-            if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=timezone.utc)
-            now = datetime.now(timezone.utc)
-            age_mins = (now - created_at).total_seconds() / 60.0
-            if age_mins > 30.0:
-                r.status = RepoStatus.FAILED
-                r.summary = "Error: Ingestion timeout. Processing took more than 30 minutes. Please click RETRY."
-                updated = True
-    if updated:
-        db.commit()
-
-    # Re-query sorted repos
     repos = db.query(Repository).filter(Repository.user_id == user_id).order_by(Repository.created_at.desc()).all()
     import json
     def get_score(scorecard_str):
