@@ -62,6 +62,29 @@ Turn any repository into an interview simulator. RepoWhisper can:
 - Ask targeted system design follow-ups.
 - Test repository understanding and evaluate reasoning/trade-offs.
 
+### 🔍 Blast Radius Analysis
+
+Instantly calculate the impact of changing any file:
+
+- **Direct Dependents** — Highlight files that directly import or call the selected file.
+- **Transitive Ripple Effect** — Trace multi-level BFS dependent chains up to 5 levels deep.
+- **Visual Graph Highlighting** — Color-code impact zones directly within the 3D knowledge graph.
+
+### 🏥 Deterministic Health Score
+
+Statically-computed architectural health score (0–100) based on actual code metrics:
+
+- **Dead Code Detection** — Identify files with zero incoming import/call dependencies (excluding entrypoints).
+- **Circular Dependency Analysis** — Tarjan's SCC cycle detection mapping exact file dependency loops.
+- **Coupling Ratio** — Measure average edges per file with transparent scoring breakdowns.
+
+### 🔥 Activity Heatmap
+
+Overlay git commit frequency directly onto the 3D knowledge graph:
+
+- **Git Churn Tracking** — Analyze commit activity across historical time windows.
+- **Heat Gradient Visualization** — Color-code nodes from cold (low churn) to hot (high activity) to quickly spot refactoring hotspots.
+
 ### ⚙️ Developer Control Center
 
 Manage repositories and AI settings from a centralized dashboard. Configure AI model selection, response verbosity, analysis depth, and general user preferences.
@@ -172,7 +195,9 @@ RepoWhisper uses a custom **Cyberpunk Brutalism** design language to make code e
 ![Landing Page](ScreenShots/Main%20page.png)
 
 #### Repository Dashboard & 3D Knowledge Graph
-![Knowledge Graph](ScreenShots/Know%20Graph.png)
+![Knowledge Graph](ScreenShots/Know%20Graph_1.png)
+![Blast Radius](ScreenShots/Know%20Graph_2.png)
+![Churn Heatmap](ScreenShots/Know%20Graph_3.png)
 
 ![Dashboard](ScreenShots/dashboard.png)
 
@@ -249,13 +274,19 @@ Now, open your browser and navigate to `http://localhost:3000` to access the app
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Authors
 
 **Lakshya Kumar Singh**  
 Passionate about AI, software engineering, system design, and building tools that help developers understand complex systems faster.
 
 - **GitHub:** [@X-ImLucky-X](https://github.com/X-ImLucky-X)
 - **LinkedIn:** [Lakshya Kumar Singh](https://www.linkedin.com/in/lakshya-kumar-singh-62142128b/)
+
+**Ishant Shekhar Eeshu**  
+Exploring the intersection of AI and software engineering by building intelligent developer tools that transform complex codebases into intuitive, interactive experiences.
+
+- **GitHub:** [@ishant212](https://github.com/ishant212)
+- **LinkedIn:** [Ishant Shekhar Eeshu](https://www.linkedin.com/in/ishant-shekhar-eeshu/)
 
 ---
 

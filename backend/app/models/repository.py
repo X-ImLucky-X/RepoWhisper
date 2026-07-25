@@ -24,6 +24,8 @@ class Repository(Base):
     tree = Column(Text, nullable=True)
     graph_json = Column(Text, nullable=True)
     scorecard = Column(Text, nullable=True)
+    dependency_graph = Column(Text, nullable=True)
+    churn_json = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

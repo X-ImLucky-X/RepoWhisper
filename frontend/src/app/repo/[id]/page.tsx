@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, Send, User, ChevronLeft, FileText, Code2, MessageSquareCode, FolderTree, FileCode, X, Activity, AlertTriangle, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Bot, Send, User, ChevronLeft, FileText, Code2, MessageSquareCode, FolderTree, FileCode, X, Activity, AlertTriangle, ShieldAlert, CheckCircle2, Flame, Target, RefreshCw, BarChart3, Zap } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -76,6 +76,21 @@ export default function MockInterviewPage() {
   const [fileExplanation, setFileExplanation] = useState<string>("");
   const [isExplaining, setIsExplaining] = useState<boolean>(false);
 
+  // Blast Radius state
+  const [blastRadiusMode, setBlastRadiusMode] = useState<boolean>(false);
+  const [blastRadiusData, setBlastRadiusData] = useState<any>(null);
+  const [blastRadiusLoading, setBlastRadiusLoading] = useState<boolean>(false);
+
+  // Churn Heatmap state  
+  const [churnMode, setChurnMode] = useState<boolean>(false);
+  const [churnData, setChurnData] = useState<Record<string, number> | null>(null);
+
+  // Dependency graph data from API
+  const [dependencyGraph, setDependencyGraph] = useState<any>(null);
+
+  // Graph coloring mode
+  const BLAST_RADIUS_TRANSITIVE_LIMIT = 50;
+
   useEffect(() => {
     // Fetch Repo Details (Cheat Sheet)
     const fetchRepo = async () => {
@@ -94,6 +109,8 @@ export default function MockInterviewPage() {
           if (data.graph_json) {
             setGraphData(data.graph_json);
           }
+          if (data.dependency_graph) setDependencyGraph(data.dependency_graph);
+          if (data.churn_json) setChurnData(data.churn_json);
         }
       } catch (err) {
         console.error(err);
@@ -178,7 +195,17 @@ export default function MockInterviewPage() {
   };
 
   const handleNodeClick = async (node: any) => {
+    console.log("Node clicked:", node);
     if (node.group === "file") {
+      if (blastRadiusMode) {
+        console.log("Triggering blast radius fetch for:", node.id);
+        fetchBlastRadius(node.id);
+        return; // Do NOT open explanation sidebar in blast radius mode
+      }
+      if (churnMode) {
+        return; // Do NOT open explanation sidebar in churn mode
+      }
+      
       setSelectedFile(node.id);
       setIsExplaining(true);
       setFileExplanation("");
@@ -207,7 +234,57 @@ export default function MockInterviewPage() {
       } finally {
         setIsExplaining(false);
       }
+    } else {
+      console.log("Non-file node clicked (group:", node.group, "), skipping analysis.");
     }
+  };
+
+  const fetchBlastRadius = async (filePath: string) => {
+    setBlastRadiusLoading(true);
+    console.log("Fetching blast radius from API for:", filePath);
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/v1/repos/${repoId}/blast-radius?file=${encodeURIComponent(filePath)}&max_depth=5`,
+        { headers: { "X-User-Id": (session?.user as any)?.id || "" } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        console.log("Blast radius API response:", data);
+        setBlastRadiusData(data);
+      } else {
+        console.error("Blast radius API returned non-OK status:", res.status);
+      }
+    } catch (err) {
+      console.error("Blast radius fetch failed:", err);
+    } finally {
+      setBlastRadiusLoading(false);
+    }
+  };
+
+  const getNodeColor = (node: any) => {
+    // Blast Radius mode
+    if (blastRadiusMode && blastRadiusData) {
+      if (node.id === blastRadiusData.file) return "#00E0FF"; // selected: cyan
+      if (blastRadiusData.direct?.includes(node.id)) return "#BD00FF"; // direct: purple
+      if (blastRadiusData.transitiveCount <= BLAST_RADIUS_TRANSITIVE_LIMIT) {
+        if (blastRadiusData.transitive?.includes(node.id)) return "rgba(189, 0, 255, 0.4)"; // transitive: dim purple
+      }
+      return "rgba(255, 255, 255, 0.12)"; // everything else dimmed
+    }
+    // Churn Heatmap mode
+    if (churnMode && churnData && node.group === "file") {
+      const count = churnData[node.id] || 0;
+      if (count === 0) return "rgba(255, 255, 255, 0.15)";
+      const maxChurn = Math.max(...Object.values(churnData), 1);
+      const ratio = count / maxChurn;
+      if (ratio < 0.33) return "#0052FF"; // cold: blue
+      if (ratio < 0.66) return "#FFFF00"; // medium: yellow
+      return "#FF0000"; // hot: red
+    }
+    // Default base knowledge graph coloring (custom 3-color scheme)
+    if (node.group === "root") return "#FFFFFF";      // Root: White
+    if (node.group === "folder") return "#00E0FF";    // Folders: Cyan
+    return "#BD00FF";                                 // Files: Electric Purple
   };
 
   return (
@@ -287,48 +364,154 @@ export default function MockInterviewPage() {
                     <div className="flex items-center justify-between p-6 bg-cyber-panel border-4 border-cyber-border shadow-[8px_8px_0px_#000]">
                       <div>
                         <h2 className="text-3xl text-cyber-cyan drop-shadow-[2px_2px_0px_#000] mb-1">HEALTH SCORE</h2>
-                        <p className="text-white normal-case font-mono">Automated evaluation by AI</p>
+                        <p className="text-white normal-case font-mono">
+                          {scorecard.breakdown ? "Deterministic static analysis" : "Automated evaluation by AI"}
+                        </p>
                       </div>
                       <div className={`w-24 h-24 flex items-center justify-center text-5xl font-black border-4 shadow-[4px_4px_0px_#000] ${scorecard.score >= 80 ? 'text-black border-cyber-border bg-emerald-500' : scorecard.score >= 50 ? 'text-black border-cyber-border bg-amber-500' : 'text-black border-cyber-border bg-rose-500'}`}>
                         {scorecard.score}
                       </div>
                     </div>
-                    
+
+                    {/* New: Score Breakdown (only for computed scores) */}
+                    {scorecard.breakdown && (
+                      <div className="p-6 bg-cyber-panel border-4 border-cyber-border shadow-[8px_8px_0px_#000] space-y-5">
+                        <h3 className="text-xl text-cyber-cyan flex items-center gap-2">
+                          <BarChart3 className="w-5 h-5" /> SCORE BREAKDOWN
+                        </h3>
+                        
+                        {/* Dead Code */}
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-neutral-400">DEAD CODE</span>
+                            <span className="text-white">{scorecard.breakdown.deadCodePct?.toFixed(1)}%
+                              <span className="text-neutral-500 text-xs ml-1">
+                                ({scorecard.breakdown.deadCodeAnalyzedFiles} analyzed, {scorecard.breakdown.totalFiles - scorecard.breakdown.deadCodeAnalyzedFiles} excluded)
+                              </span>
+                            </span>
+                          </div>
+                          <div className="h-3 bg-cyber-canvas border-2 border-cyber-border">
+                            <div className="h-full bg-amber-500 transition-all" style={{ width: `${Math.min(100, scorecard.breakdown.deadCodePct || 0)}%` }} />
+                          </div>
+                        </div>
+
+                        {/* Circular Dependencies */}
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-neutral-400">CIRCULAR DEPS</span>
+                            <span className="text-white">{scorecard.breakdown.circularDeps}</span>
+                          </div>
+                          <div className="h-3 bg-cyber-canvas border-2 border-cyber-border">
+                            <div className="h-full bg-rose-500 transition-all" style={{ width: `${Math.min(100, (scorecard.breakdown.circularDeps || 0) * 25)}%` }} />
+                          </div>
+                        </div>
+
+                        {/* Average Coupling */}
+                        <div>
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-neutral-400">AVG COUPLING</span>
+                            <span className="text-white">{scorecard.breakdown.avgCoupling?.toFixed(1)} edges/file</span>
+                          </div>
+                          <div className="h-3 bg-cyber-canvas border-2 border-cyber-border">
+                            <div className="h-full bg-cyber-primary transition-all" style={{ width: `${Math.min(100, (scorecard.breakdown.avgCoupling || 0) * 15)}%` }} />
+                          </div>
+                        </div>
+
+                        {/* Detected Cycles */}
+                        {scorecard.breakdown.cycles && scorecard.breakdown.cycles.length > 0 && (
+                          <div className="mt-4 p-4 bg-rose-500/20 border-2 border-rose-500">
+                            <h4 className="text-sm text-rose-400 mb-2 flex items-center gap-1">
+                              <Activity className="w-4 h-4" /> DETECTED CYCLES
+                            </h4>
+                            <ul className="text-xs normal-case font-mono font-normal text-rose-300 space-y-1">
+                              {scorecard.breakdown.cycles.map((cycle: string[], i: number) => (
+                                <li key={i}>{cycle.join(" \u2192 ")}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Dead Code Files */}
+                        {scorecard.breakdown.deadCodeFiles && scorecard.breakdown.deadCodeFiles.length > 0 && (
+                          <div className="mt-4 p-4 bg-amber-500/20 border-2 border-amber-500">
+                            <h4 className="text-sm text-amber-400 mb-2 flex items-center gap-1">
+                              <AlertTriangle className="w-4 h-4" /> UNREFERENCED FILES
+                            </h4>
+                            <ul className="text-xs normal-case font-mono font-normal text-amber-300 space-y-1">
+                              {scorecard.breakdown.deadCodeFiles.map((f: string, i: number) => (
+                                <li key={i}>{f}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Old LLM-only scorecard: show re-analyze prompt */}
+                    {!scorecard.breakdown && (
+                      <div className="p-4 bg-cyber-panel border-2 border-dashed border-cyber-border flex items-center justify-between">
+                        <p className="text-xs text-neutral-400 normal-case font-mono">Re-analyze this repo for a detailed health breakdown</p>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await fetch(`http://localhost:8000/api/v1/repos/${repoId}/retry`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json", "X-User-Id": (session?.user as any)?.id || "" },
+                                body: JSON.stringify({ access_token: "" }),
+                              });
+                              window.location.reload();
+                            } catch (err) { console.error(err); }
+                          }}
+                          className="flex items-center gap-1 px-3 py-1 bg-cyber-cyan text-black border-2 border-cyber-border text-xs shadow-[2px_2px_0px_#000] hover:bg-white transition-colors"
+                        >
+                          <RefreshCw className="w-3 h-3" /> RE-ANALYZE
+                        </button>
+                      </div>
+                    )}
+
+                    {/* AI Analysis Section (LLM-sourced lists) */}
                     <div className="space-y-6">
-                      {scorecard.circular_dependencies && scorecard.circular_dependencies.length > 0 && (
+                      {scorecard.breakdown && (scorecard.ai_analysis?.circular_dependencies?.length > 0 || scorecard.ai_analysis?.dead_files?.length > 0 || scorecard.ai_analysis?.security_risks?.length > 0) && (
+                        <h3 className="text-lg text-neutral-500 flex items-center gap-2">
+                          <Zap className="w-5 h-5" /> AI ANALYSIS
+                        </h3>
+                      )}
+
+                      {(scorecard.circular_dependencies || scorecard.ai_analysis?.circular_dependencies)?.length > 0 && (
                         <div className="p-6 bg-rose-500 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000]">
                           <h3 className="text-xl font-black flex items-center gap-2 mb-4">
                             <Activity className="w-6 h-6" /> CIRCULAR DEPENDENCIES
                           </h3>
                           <ul className="list-disc pl-5 text-sm normal-case space-y-1 font-mono font-bold">
-                            {scorecard.circular_dependencies.map((dep: string, i: number) => <li key={i}>{dep}</li>)}
+                            {(scorecard.ai_analysis?.circular_dependencies || scorecard.circular_dependencies)?.map((dep: string, i: number) => <li key={i}>{dep}</li>)}
                           </ul>
                         </div>
                       )}
                       
-                      {scorecard.dead_files && scorecard.dead_files.length > 0 && (
+                      {(scorecard.dead_files || scorecard.ai_analysis?.dead_files)?.length > 0 && (
                         <div className="p-6 bg-amber-500 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000]">
                           <h3 className="text-xl font-black flex items-center gap-2 mb-4">
                             <AlertTriangle className="w-6 h-6" /> DEAD / UNUSED FILES
                           </h3>
                           <ul className="list-disc pl-5 text-sm normal-case space-y-1 font-mono font-bold">
-                            {scorecard.dead_files.map((file: string, i: number) => <li key={i}>{file}</li>)}
+                            {(scorecard.ai_analysis?.dead_files || scorecard.dead_files)?.map((file: string, i: number) => <li key={i}>{file}</li>)}
                           </ul>
                         </div>
                       )}
 
-                      {scorecard.security_risks && scorecard.security_risks.length > 0 && (
+                      {(scorecard.security_risks || scorecard.ai_analysis?.security_risks)?.length > 0 && (
                         <div className="p-6 bg-rose-600 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000]">
                           <h3 className="text-xl font-black flex items-center gap-2 mb-4">
                             <ShieldAlert className="w-6 h-6" /> SECURITY RISKS
                           </h3>
                           <ul className="list-disc pl-5 text-sm normal-case space-y-1 font-mono font-bold">
-                            {scorecard.security_risks.map((risk: string, i: number) => <li key={i}>{risk}</li>)}
+                            {(scorecard.ai_analysis?.security_risks || scorecard.security_risks)?.map((risk: string, i: number) => <li key={i}>{risk}</li>)}
                           </ul>
                         </div>
                       )}
 
-                      {(!scorecard.circular_dependencies?.length && !scorecard.dead_files?.length && !scorecard.security_risks?.length) && (
+                      {/* Show pristine message only if both computed and AI analysis find nothing */}
+                      {(!scorecard.breakdown?.cycles?.length && !scorecard.breakdown?.deadCodeFiles?.length && !(scorecard.circular_dependencies || scorecard.ai_analysis?.circular_dependencies)?.length && !(scorecard.dead_files || scorecard.ai_analysis?.dead_files)?.length && !(scorecard.security_risks || scorecard.ai_analysis?.security_risks)?.length) && (
                         <div className="p-6 bg-emerald-500 border-4 border-cyber-border text-black shadow-[8px_8px_0px_#000] flex items-center gap-4">
                           <CheckCircle2 className="w-10 h-10" />
                           <div>
@@ -347,18 +530,108 @@ export default function MockInterviewPage() {
               </div>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-[#0B0F19] overflow-hidden">
+                {/* Graph Mode Toolbar */}
+                {graphData && (
+                  <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        const nextVal = !blastRadiusMode;
+                        setBlastRadiusMode(nextVal);
+                        setChurnMode(false);
+                        if (!nextVal) {
+                          setBlastRadiusData(null);
+                          setSelectedFile(null);
+                        }
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 border-2 border-cyber-border text-xs shadow-[2px_2px_0px_#000] transition-colors ${
+                        blastRadiusMode ? "bg-cyber-primary text-black" : "bg-cyber-panel text-white hover:bg-cyber-canvas"
+                      }`}
+                    >
+                      <Target className="w-4 h-4" /> BLAST RADIUS
+                    </button>
+                    <button
+                      onClick={() => {
+                        const nextVal = !churnMode;
+                        setChurnMode(nextVal);
+                        setBlastRadiusMode(false);
+                        setBlastRadiusData(null);
+                        setSelectedFile(null);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 border-2 border-cyber-border text-xs shadow-[2px_2px_0px_#000] transition-colors ${
+                        churnMode ? "bg-amber-500 text-black" : "bg-cyber-panel text-white hover:bg-cyber-canvas"
+                      }`}
+                    >
+                      <Flame className="w-4 h-4" /> CHURN HEATMAP
+                    </button>
+                  </div>
+                )}
                 {graphData ? (
                    <>
                      <ForceGraph3D 
                         graphData={graphData} 
                         nodeLabel="id" 
-                        nodeAutoColorBy="group" 
+                        nodeColor={getNodeColor}
                         nodeResolution={8}
                         cooldownTicks={100}
                         backgroundColor="#0B0F19"
                         onNodeClick={handleNodeClick}
+                        onBackgroundClick={() => {
+                          setSelectedFile(null);
+                          setBlastRadiusData(null);
+                        }}
                      />
                      
+                     {/* Blast Radius Info Overlay */}
+                     {blastRadiusMode && blastRadiusData && (
+                       <div className="absolute bottom-4 left-4 z-20 bg-cyber-panel border-2 border-cyber-border p-4 shadow-[4px_4px_0px_#000] max-w-xs">
+                         <h4 className="text-cyber-cyan text-sm mb-1 flex items-center gap-2">
+                           <Target className="w-4 h-4" /> BLAST RADIUS
+                         </h4>
+                         <p className="text-[10px] text-neutral-400 normal-case mb-2 font-mono font-normal">
+                           Calculates and highlights the system-wide impact of editing the selected file.
+                         </p>
+                         <p className="text-xs normal-case font-mono font-normal text-neutral-300 mb-2 break-all">
+                           {blastRadiusData.file?.split('/').pop()}
+                         </p>
+                         <div className="flex gap-4 text-xs">
+                           <div>
+                             <span className="text-cyber-primary">DIRECT</span>
+                             <span className="text-white ml-2">{blastRadiusData.directCount}</span>
+                           </div>
+                           <div>
+                             <span className="text-cyber-primary opacity-60">TRANSITIVE</span>
+                             <span className="text-white ml-2">
+                               {blastRadiusData.transitiveCount > BLAST_RADIUS_TRANSITIVE_LIMIT
+                                 ? `+${blastRadiusData.transitiveCount}`
+                                 : blastRadiusData.transitiveCount}
+                             </span>
+                           </div>
+                         </div>
+                         {blastRadiusData.transitiveCount > BLAST_RADIUS_TRANSITIVE_LIMIT && (
+                           <p className="text-[10px] text-amber-400 mt-2 normal-case font-mono font-normal">
+                             Too many transitive deps to highlight individually. Showing direct only.
+                           </p>
+                         )}
+                       </div>
+                     )}
+
+                     {/* Churn Legend */}
+                     {churnMode && churnData && (
+                       <div className="absolute bottom-4 left-4 z-20 bg-cyber-panel border-2 border-cyber-border p-4 shadow-[4px_4px_0px_#000] max-w-xs">
+                         <h4 className="text-amber-400 text-sm mb-1 flex items-center gap-2">
+                           <Flame className="w-4 h-4" /> CHURN HEATMAP
+                         </h4>
+                         <p className="text-[10px] text-neutral-400 normal-case mb-2 font-mono font-normal">
+                           Highlights code hot-spots based on commit frequency over the past year.
+                         </p>
+                         <div className="flex items-center gap-3 text-[10px]">
+                           <span className="text-[#0052FF]">● COLD</span>
+                           <span className="text-[#FFFF00]">● MEDIUM</span>
+                           <span className="text-[#FF0000]">● HOT</span>
+                         </div>
+                       </div>
+                     )}
+
                      <AnimatePresence>
                        {selectedFile && (
                          <motion.div 
@@ -373,7 +646,7 @@ export default function MockInterviewPage() {
                                <FileCode className="w-6 h-6 shrink-0" />
                                {selectedFile.split('/').pop()}
                              </h3>
-                             <button onClick={() => setSelectedFile(null)} className="text-white bg-rose-500 border-2 border-cyber-border hover:bg-rose-600 transition-colors p-1 ml-2 shadow-[2px_2px_0px_#000]">
+                             <button onClick={() => { setSelectedFile(null); setBlastRadiusData(null); }} className="text-white bg-rose-500 border-2 border-cyber-border hover:bg-rose-600 transition-colors p-1 ml-2 shadow-[2px_2px_0px_#000]">
                                <X className="w-5 h-5" />
                              </button>
                            </div>

@@ -5,6 +5,11 @@ import shutil
 import pathspec
 from typing import List, Dict, Tuple
 
+# Time window for git history used by churn analysis.
+# Uses git's --shallow-since format. Set to 1 year to balance
+# churn signal quality against clone speed on large repos.
+CHURN_HISTORY_WINDOW = "1.year"
+
 # Massive list of ignore patterns inspired by gitingest
 DEFAULT_IGNORE_PATTERNS = [
     "*.pyc", "*.pyo", "*.pyd", "__pycache__", ".pytest_cache", ".coverage", "coverage/", ".tox", ".nox", ".mypy_cache", ".ruff_cache",
@@ -49,7 +54,7 @@ class GitHubParser:
                 base_url = clone_url.rstrip("/")
                 if base_url.startswith("https://"):
                     clone_url = base_url.replace("https://", f"https://x-access-token:{self.access_token}@")
-            subprocess.run(["git", "clone", "--depth", "1", clone_url, self.temp_dir], check=True, capture_output=True)
+            subprocess.run(["git", "clone", "--shallow-since", CHURN_HISTORY_WINDOW, clone_url, self.temp_dir], check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
             self.cleanup()
             from app.core.security import sanitize_secrets
@@ -150,6 +155,32 @@ class GitHubParser:
         tree_str = "\n".join(tree_lines)
         return files_data, tree_str, {"nodes": nodes, "links": links}
         
+    def get_churn_data(self) -> dict:
+        """Run git log on the shallow-since clone to build a per-file commit frequency map."""
+        churn = {}
+        try:
+            result = subprocess.run(
+                ["git", "log", "--format=", "--name-only"],
+                cwd=self.temp_dir,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            spec = self._build_ignore_spec()
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                # Normalize path separators
+                normalized = line.replace("\\", "/")
+                # Apply same ignore patterns as file extraction
+                if spec.match_file(normalized):
+                    continue
+                churn[normalized] = churn.get(normalized, 0) + 1
+        except Exception as e:
+            print(f"Churn data extraction failed: {e}")
+        return churn
+
     def cleanup(self):
         if os.path.exists(self.temp_dir):
             def onerror(func, path, exc_info):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.repository import Repository, RepoStatus
@@ -6,6 +6,8 @@ from app.schemas.repository import RepoImportRequest, RepoImportResponse, RepoRe
 from app.services.github.parser import GitHubParser
 from app.services.rag.ingestion import RAGIngestor
 from app.services.agent.summarizer import RepoSummarizer
+from app.services.analysis.dependency import build_dependency_graph
+from app.services.analysis.blast_radius import compute_blast_radius
 
 from app.core.rate_limit import limiter
 from app.api.deps import get_current_user_id, verify_repo_ownership
@@ -29,26 +31,76 @@ def process_repository(repo_id: str, github_url: str, access_token: str):
         parser.clone()
         import json
         files, tree_str, graph_data = parser.get_files_and_tree()
+
+        # Step 1.5: Collect per-file churn data from git history
+        churn_data = {}
+        try:
+            churn_data = parser.get_churn_data()
+        except Exception as e:
+            from app.core.security import sanitize_secrets
+            print(f"Churn data collection failed: {sanitize_secrets(str(e), [access_token] if access_token else None)}")
         
         # Step 2: Ingest into RAG / Vector DB
         ingestor = RAGIngestor(repository_id=repo_id)
         ingestor.ingest_files(files)
-        
+
+        # Step 2.5: Build cross-file dependency graph
+        dep_graph_json = None
+        dep_edges = None
+        analyzed_files = None
+        try:
+            dep_edges, analyzed_files = build_dependency_graph(files)
+            dep_graph_json = json.dumps({
+                "edges": dep_edges,
+                "analyzed_files": list(analyzed_files),
+            })
+        except Exception as e:
+            from app.core.security import sanitize_secrets
+            print(f"Dependency graph build failed: {sanitize_secrets(str(e), [access_token] if access_token else None)}")
+
         # Step 3: Generate Cheat Sheet Summary & Scorecard
         summarizer = RepoSummarizer()
         summary = summarizer.generate_cheat_sheet(files, tree_str)
+        llm_scorecard = None
         try:
-            scorecard = summarizer.generate_scorecard(files, tree_str)
+            llm_scorecard_raw = summarizer.generate_scorecard(files, tree_str)
+            llm_scorecard = json.loads(llm_scorecard_raw) if llm_scorecard_raw else None
         except Exception as e:
             print(f"Scorecard generation failed: {e}")
-            scorecard = None
-        
+
+        # Step 3.5: Compute deterministic health score from dependency graph
+        final_scorecard = None
+        try:
+            from app.services.analysis.health import compute_health_score
+            if dep_edges is not None:
+                health = compute_health_score(dep_edges, analyzed_files or set(), files)
+                # Merge: computed score + breakdown + LLM's narrative analysis
+                final_scorecard = {
+                    "score": health["score"],
+                    "breakdown": health["breakdown"],
+                }
+                if llm_scorecard:
+                    final_scorecard["ai_analysis"] = {
+                        "circular_dependencies": llm_scorecard.get("circular_dependencies", []),
+                        "dead_files": llm_scorecard.get("dead_files", []),
+                        "security_risks": llm_scorecard.get("security_risks", []),
+                    }
+            elif llm_scorecard:
+                # Fallback: dependency graph failed, use LLM scorecard as-is
+                final_scorecard = llm_scorecard
+        except Exception as e:
+            print(f"Health score computation failed: {e}")
+            if llm_scorecard:
+                final_scorecard = llm_scorecard
+
         # Step 4: Cleanup and update status
         parser.cleanup()
         repo.summary = summary
-        repo.scorecard = scorecard
+        repo.scorecard = json.dumps(final_scorecard) if final_scorecard else None
         repo.tree = tree_str
         repo.graph_json = json.dumps(graph_data)
+        repo.dependency_graph = dep_graph_json
+        repo.churn_json = json.dumps(churn_data) if churn_data else None
         repo.status = RepoStatus.COMPLETED
         db.commit()
 
@@ -131,5 +183,29 @@ def get_repo_detail(request: Request, repo_id: str, db: Session = Depends(get_db
         "summary": repo.summary,
         "scorecard": json.loads(repo.scorecard) if repo.scorecard else None,
         "tree": repo.tree,
-        "graph_json": json.loads(repo.graph_json) if repo.graph_json else None
+        "graph_json": json.loads(repo.graph_json) if repo.graph_json else None,
+        "dependency_graph": json.loads(repo.dependency_graph) if repo.dependency_graph else None,
+        "churn_json": json.loads(repo.churn_json) if repo.churn_json else None,
     }
+
+@router.get("/{repo_id}/blast-radius")
+@limiter.limit("30/minute")
+def get_blast_radius(
+    request: Request,
+    repo_id: str,
+    file: str = Query(..., description="File path to analyze"),
+    max_depth: int = Query(5, ge=1, le=10, description="Max BFS depth"),
+    db: Session = Depends(get_db),
+    repo: Repository = Depends(verify_repo_ownership),
+):
+    if not repo.dependency_graph:
+        return {"error": "Dependency graph not available. Re-analyze the repository."}
+    
+    import json
+    try:
+        graph_data = json.loads(repo.dependency_graph)
+        edges = graph_data.get("edges", [])
+    except Exception:
+        return {"error": "Dependency graph is invalid."}
+        
+    return compute_blast_radius(edges, file, max_depth)
