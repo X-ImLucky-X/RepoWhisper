@@ -195,7 +195,9 @@ RepoWhisper uses a custom **Cyberpunk Brutalism** design language to make code e
 ![Landing Page](ScreenShots/Main%20page.png)
 
 #### Repository Dashboard & 3D Knowledge Graph
-![Knowledge Graph](ScreenShots/Know%20Graph.png)
+![Knowledge Graph](ScreenShots/Know%20Graph_1.png)
+![Blast Radius](ScreenShots/Know%20Graph_2.png)
+![Churn Heatmap](ScreenShots/Know%20Graph_3.png)
 
 ![Dashboard](ScreenShots/dashboard.png)
 
@@ -272,13 +274,19 @@ Now, open your browser and navigate to `http://localhost:3000` to access the app
 
 ---
 
-## 👨‍💻 Author
+## 👨‍💻 Authors
 
 **Lakshya Kumar Singh**  
 Passionate about AI, software engineering, system design, and building tools that help developers understand complex systems faster.
 
 - **GitHub:** [@X-ImLucky-X](https://github.com/X-ImLucky-X)
 - **LinkedIn:** [Lakshya Kumar Singh](https://www.linkedin.com/in/lakshya-kumar-singh-62142128b/)
+
+**Ishant Shekhar Eeshu**  
+Exploring the intersection of AI and software engineering by building intelligent developer tools that transform complex codebases into intuitive, interactive experiences.
+
+- **GitHub:** [@ishant212](https://github.com/ishant212)
+- **LinkedIn:** [Ishant Shekhar Eeshu](https://www.linkedin.com/in/ishant-shekhar-eeshu/)
 
 ---
 
