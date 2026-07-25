@@ -62,6 +62,29 @@ Turn any repository into an interview simulator. RepoWhisper can:
 - Ask targeted system design follow-ups.
 - Test repository understanding and evaluate reasoning/trade-offs.
 
+### 🔍 Blast Radius Analysis
+
+Instantly calculate the impact of changing any file:
+
+- **Direct Dependents** — Highlight files that directly import or call the selected file.
+- **Transitive Ripple Effect** — Trace multi-level BFS dependent chains up to 5 levels deep.
+- **Visual Graph Highlighting** — Color-code impact zones directly within the 3D knowledge graph.
+
+### 🏥 Deterministic Health Score
+
+Statically-computed architectural health score (0–100) based on actual code metrics:
+
+- **Dead Code Detection** — Identify files with zero incoming import/call dependencies (excluding entrypoints).
+- **Circular Dependency Analysis** — Tarjan's SCC cycle detection mapping exact file dependency loops.
+- **Coupling Ratio** — Measure average edges per file with transparent scoring breakdowns.
+
+### 🔥 Activity Heatmap
+
+Overlay git commit frequency directly onto the 3D knowledge graph:
+
+- **Git Churn Tracking** — Analyze commit activity across historical time windows.
+- **Heat Gradient Visualization** — Color-code nodes from cold (low churn) to hot (high activity) to quickly spot refactoring hotspots.
+
 ### ⚙️ Developer Control Center
 
 Manage repositories and AI settings from a centralized dashboard. Configure AI model selection, response verbosity, analysis depth, and general user preferences.
